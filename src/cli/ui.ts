@@ -170,35 +170,46 @@ export class TerminalUI {
     // ASCII art logo - "PACE" with italic formatting
     const italic = '\x1b[3m';
     const reset = '\x1b[0m';
-    const logo = chalk.bold.cyan(italic + '██████╗  █████╗  ██████╗███████╗' + reset);
-    const logo2 = chalk.bold.cyan(italic + '██╔══██╗██╔══██╗██╔════╝██╔════╝' + reset);
-    const logo3 = chalk.bold.cyan(italic + '██████╔╝███████║██║     █████╗  ' + reset);
-    const logo4 = chalk.bold.cyan(italic + '██╔═══╝ ██╔══██║██║     ██╔══╝  ' + reset);
-    const logo5 = chalk.bold.cyan(italic + '██║     ██║  ██║╚██████╗███████╗' + reset);
-    const logo6 = chalk.bold.cyan(italic + '╚═╝     ╚═╝  ╚═╝ ╚═════╝╚══════╝' + reset);
+
+    const logo  = chalk.bold.white(italic + '                      ____  ___   ____________' + reset);
+    const logo2 = chalk.bold.white(italic + '    ____  _________  / __ \\/   | / ____/ ____/' + reset);
+    const logo3 = chalk.bold.white(italic + '   / __ \\/ ___/ __ \\/ /_/ / /| |/ /   / __/   ' + reset);
+    const logo4 = chalk.bold.white(italic + '  / /_/ / /  / /_/ / ____/ ___ / /___/ /___   ' + reset);
+    const logo5 = chalk.bold.white(italic + ' / .___/_/   \\____/_/   /_/  |_\\____/_____/   ' + reset);
+    const logo6 = chalk.bold.white(italic + '/_/                                           ' + reset);
 
     const timeDisplay = chalk.white(time.time) + ' ' + chalk.gray(time.date);
     const status = `${statusIcon} ${statusText}`;
+    const version = chalk.gray('v2.0');
 
-    const headerLine1 = this.padLine(logo, timeDisplay, this.layout.header.width - 4);
-    const headerLine2 = this.padLine(logo2, '', this.layout.header.width - 4);
-    const headerLine3 = this.padLine(logo3, status, this.layout.header.width - 4);
-    const headerLine4 = this.padLine(logo4, '', this.layout.header.width - 4);
-    const headerLine5 = this.padLine(logo5, '', this.layout.header.width - 4);
-    const headerLine6 = this.padLine(logo6, chalk.gray('v2.0'), this.layout.header.width - 4);
+    // Render logo without box
+    this.moveCursor(0, this.layout.header.y);
+    process.stdout.write(logo);
+    this.moveCursor(0, this.layout.header.y + 1);
+    process.stdout.write(logo2);
+    this.moveCursor(0, this.layout.header.y + 2);
+    process.stdout.write(logo3);
+    this.moveCursor(0, this.layout.header.y + 3);
+    process.stdout.write(logo4);
+    this.moveCursor(0, this.layout.header.y + 4);
+    process.stdout.write(logo5);
+    this.moveCursor(0, this.layout.header.y + 5);
+    process.stdout.write(logo6);
 
-    const headerText = `${headerLine1}\n${headerLine2}\n${headerLine3}\n${headerLine4}\n${headerLine5}\n${headerLine6}`;
-
-    const box = boxen(headerText, {
-      padding: 0,
+    // Create info box on the right with time, status, version
+    const infoContent = `${timeDisplay}\n${status}\n\n${version}`;
+    const infoBox = boxen(infoContent, {
+      padding: { left: 1, right: 1, top: 0, bottom: 0 },
       margin: 0,
       borderStyle: 'round',
       borderColor: 'cyan',
-      width: this.layout.header.width,
+      width: Math.floor(this.layout.header.width * 0.35),
     });
 
-    this.moveCursor(0, this.layout.header.y);
-    process.stdout.write(box);
+    // Position info box on the right side
+    const infoPosX = this.layout.header.width - Math.floor(this.layout.header.width * 0.35) - 2;
+    this.moveCursor(infoPosX, this.layout.header.y);
+    this.writeMultiline(infoBox, this.layout.header.y, infoPosX);
   }
 
   /**
@@ -289,8 +300,9 @@ export class TerminalUI {
     if (conversation.query && conversation.response) {
       const maxWidth = this.layout.conversation.width - 6;
       const query = this.wrapText(conversation.query, maxWidth);
-      const response = this.wrapText(conversation.response, maxWidth);
-      content = `${chalk.bold('💬 CHAT')}\n\n${chalk.cyan.bold('You:')}\n${chalk.white(query)}\n\n${chalk.green.bold('PACE:')}\n${chalk.white(response)}`;
+      const responseFormatted = this.formatResponseText(conversation.response);
+      const response = this.wrapText(responseFormatted, maxWidth);
+      content = `${chalk.bold('💬 CHAT')}\n\n${chalk.cyan.bold('You:')}\n${chalk.white(query)}\n\n${chalk.green.bold('PACE:')}\n${response}`;
     } else if (conversation.query) {
       const maxWidth = this.layout.conversation.width - 6;
       const query = this.wrapText(conversation.query, maxWidth);
@@ -348,6 +360,15 @@ export class TerminalUI {
    */
   private stripAnsi(str: string): string {
     return str.replace(/\x1b\[[0-9;]*m/g, '');
+  }
+
+  /**
+   * Helper: Format response text - convert *text* to bold
+   */
+  private formatResponseText(text: string): string {
+    return text.replace(/\*([^\*]+)\*/g, (_match, content) => {
+      return chalk.white.bold(content);
+    });
   }
 
   /**

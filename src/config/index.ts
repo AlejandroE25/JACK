@@ -24,6 +24,13 @@ export function loadConfig(): PACEConfig {
     responseCacheTTL: parseInt(process.env.RESPONSE_CACHE_TTL || '300000', 10),
     logLevel: process.env.LOG_LEVEL || 'info',
     logFile: process.env.LOG_FILE || './logs/pace.log',
+    routingCacheTTL: parseInt(process.env.ROUTING_CACHE_TTL || '300000', 10),
+    routingConfidenceThreshold: parseFloat(
+      process.env.ROUTING_CONFIDENCE_THRESHOLD || '0.8'
+    ),
+    routingModel: process.env.ROUTING_MODEL || 'claude-haiku-4-5-20251001',
+    enableRoutingPrediction: process.env.ENABLE_ROUTING_PREDICTION !== 'false',
+    enableSessionLearning: process.env.ENABLE_SESSION_LEARNING !== 'false',
   };
 
   // Validate required API keys

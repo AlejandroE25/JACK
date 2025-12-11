@@ -68,6 +68,55 @@ export interface NewsItem {
 }
 
 /**
+ * Wolfram Alpha result
+ */
+export interface WolframResult {
+  query: string;
+  shortAnswer: string;
+  detailedAnswer: string;
+  pods: Array<{
+    title: string;
+    content: string;
+  }>;
+  success: boolean;
+}
+
+/**
+ * Routing subsystem types
+ */
+export type SubsystemType = 'weather' | 'news' | 'wolfram' | 'claude';
+
+/**
+ * Routing decision from intelligent router
+ */
+export interface RoutingDecision {
+  subsystem: SubsystemType;
+  confidence: number;
+  reasoning?: string;
+  cached: boolean;
+}
+
+/**
+ * Routing cache entry
+ */
+export interface RoutingCacheEntry {
+  subsystem: SubsystemType;
+  confidence: number;
+  timestamp: number;
+  hitCount: number;
+}
+
+/**
+ * Session routing pattern
+ */
+export interface SessionPattern {
+  clientId: string;
+  subsystemHistory: SubsystemType[];
+  lastQuery: Date;
+  predictedNext?: SubsystemType;
+}
+
+/**
  * Configuration interface
  */
 export interface PACEConfig {
@@ -86,6 +135,11 @@ export interface PACEConfig {
   responseCacheTTL: number;
   logLevel: string;
   logFile: string;
+  routingCacheTTL: number;
+  routingConfidenceThreshold: number;
+  routingModel: string;
+  enableRoutingPrediction: boolean;
+  enableSessionLearning: boolean;
 }
 
 /**

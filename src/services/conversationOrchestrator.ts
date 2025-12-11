@@ -2,7 +2,10 @@ import { ClaudeClient } from '../clients/claudeClient.js';
 import { MemoryStore } from './memoryStore.js';
 import { WeatherService } from './weatherService.js';
 import { NewsService } from './newsService.js';
-import { ConversationMessage, Memory } from '../types/index.js';
+import { WolframService } from './wolframService.js';
+import { RoutingService } from './routingService.js';
+import { RoutingPredictor } from './routingPredictor.js';
+import { ConversationMessage, Memory, SubsystemType } from '../types/index.js';
 import { logger } from '../utils/logger.js';
 import { config } from '../config/index.js';
 
@@ -15,18 +18,27 @@ export class ConversationOrchestrator {
   private memoryStore: MemoryStore;
   private weatherService: WeatherService;
   private newsService: NewsService;
+  private wolframService: WolframService;
+  private routingService: RoutingService;
+  private routingPredictor: RoutingPredictor;
   private conversationHistory: Map<string, ConversationMessage[]> = new Map();
 
   constructor(
     claudeClient: ClaudeClient,
     memoryStore: MemoryStore,
     weatherService: WeatherService,
-    newsService: NewsService
+    newsService: NewsService,
+    wolframService: WolframService,
+    routingService: RoutingService,
+    routingPredictor: RoutingPredictor
   ) {
     this.claudeClient = claudeClient;
     this.memoryStore = memoryStore;
     this.weatherService = weatherService;
     this.newsService = newsService;
+    this.wolframService = wolframService;
+    this.routingService = routingService;
+    this.routingPredictor = routingPredictor;
   }
 
   /**
@@ -34,6 +46,8 @@ export class ConversationOrchestrator {
    */
   async processMessage(clientId: string, message: string): Promise<string> {
     try {
+      const startTime = Date.now();
+
       // Get or initialize conversation history for this client
       if (!this.conversationHistory.has(clientId)) {
         this.conversationHistory.set(clientId, []);
@@ -41,32 +55,58 @@ export class ConversationOrchestrator {
 
       const history = this.conversationHistory.get(clientId)!;
 
-      // Check for subsystem routing first
-      const subsystemResponse = await this.routeToSubsystem(message);
-      if (subsystemResponse) {
-        // Update conversation history
-        this.updateConversationHistory(clientId, message, subsystemResponse);
-        return subsystemResponse;
-      }
+      // INTELLIGENT ROUTING with pre-routing validator pattern
+      const routingDecision = await this.routingService.getRoutingDecision(message);
 
-      // Search for relevant memories
-      const relevantMemories = this.searchRelevantMemories(message);
-
-      // Build system prompt with memories
-      const systemPrompt = this.buildSystemPrompt(relevantMemories);
-
-      // Generate response from Claude
-      const response = await this.claudeClient.generateResponse(
-        message,
-        history,
-        systemPrompt
+      logger.info(
+        `Routing decision for "${message}": ${routingDecision.subsystem} (confidence: ${routingDecision.confidence}, cached: ${routingDecision.cached})`
       );
+
+      let response: string;
+      let usedSubsystem: SubsystemType;
+
+      // High confidence - direct route to subsystem
+      if (this.routingService.shouldRouteDirectly(routingDecision)) {
+        response =
+          (await this.routeDirectToSubsystem(routingDecision.subsystem, message)) ||
+          (await this.fallbackToClaude(message, history));
+        usedSubsystem = routingDecision.subsystem;
+      } else {
+        // Medium/low confidence - validate with pattern matching
+        const patternResponse = await this.routeToSubsystem(message);
+
+        if (patternResponse) {
+          // Pattern matching succeeded
+          response = patternResponse;
+          usedSubsystem = this.detectUsedSubsystem(message);
+        } else if (routingDecision.subsystem !== 'claude') {
+          // Try Haiku's suggestion even with lower confidence
+          response =
+            (await this.routeDirectToSubsystem(routingDecision.subsystem, message)) ||
+            (await this.fallbackToClaude(message, history));
+          usedSubsystem = routingDecision.subsystem;
+        } else {
+          // Fall back to Claude
+          response = await this.fallbackToClaude(message, history);
+          usedSubsystem = 'claude';
+        }
+      }
 
       // Update conversation history
       this.updateConversationHistory(clientId, message, response);
 
-      // Extract and store new memories
-      await this.extractAndStoreMemories(message, response);
+      // Extract and store new memories (only for Claude responses)
+      if (usedSubsystem === 'claude') {
+        await this.extractAndStoreMemories(message, response);
+      }
+
+      // Record routing for session learning
+      this.routingPredictor.record(clientId, usedSubsystem);
+
+      const totalTime = Date.now() - startTime;
+      logger.info(
+        `Processed message in ${totalTime}ms using ${usedSubsystem} (routing: ${routingDecision.cached ? 'cached' : 'Haiku'})`
+      );
 
       return response;
     } catch (error) {
@@ -76,7 +116,89 @@ export class ConversationOrchestrator {
   }
 
   /**
+   * Route directly to a specific subsystem
+   */
+  private async routeDirectToSubsystem(
+    subsystem: SubsystemType,
+    message: string
+  ): Promise<string | null> {
+    try {
+      switch (subsystem) {
+        case 'weather':
+          return await this.weatherService.getWeatherFormatted();
+
+        case 'news':
+          return await this.newsService.getNewsFormatted();
+
+        case 'wolfram':
+          const wolframAnswer = await this.wolframService.getFormattedAnswer(message);
+          // Check if Wolfram actually found an answer
+          if (
+            !wolframAnswer.includes("couldn't find") &&
+            !wolframAnswer.includes('encountered an error')
+          ) {
+            return wolframAnswer;
+          }
+          return null; // Fallback to Claude
+
+        case 'claude':
+          return null; // Will be handled by fallbackToClaude
+
+        default:
+          logger.warn(`Unknown subsystem: ${subsystem}`);
+          return null;
+      }
+    } catch (error) {
+      logger.error(`Error routing to ${subsystem}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Fallback to Claude for general conversation
+   */
+  private async fallbackToClaude(
+    message: string,
+    history: ConversationMessage[]
+  ): Promise<string> {
+    // Search for relevant memories
+    const relevantMemories = this.searchRelevantMemories(message);
+
+    // Build system prompt with memories
+    const systemPrompt = this.buildSystemPrompt(relevantMemories);
+
+    // Generate response from Claude
+    return await this.claudeClient.generateResponse(message, history, systemPrompt);
+  }
+
+  /**
+   * Detect which subsystem was used (for pattern-based routing)
+   */
+  private detectUsedSubsystem(message: string): SubsystemType {
+    const lowerMessage = message.toLowerCase();
+
+    if (
+      lowerMessage.includes('weather') ||
+      lowerMessage.includes('temperature') ||
+      lowerMessage.includes('forecast')
+    ) {
+      return 'weather';
+    }
+
+    if (lowerMessage.includes('news') || lowerMessage.includes('headlines')) {
+      return 'news';
+    }
+
+    if (this.wolframService.isSuitableQuery(message)) {
+      return 'wolfram';
+    }
+
+    return 'claude';
+  }
+
+  /**
    * Route message to appropriate subsystem if applicable
+   * (Legacy pattern-based routing for validation)
    */
   private async routeToSubsystem(message: string): Promise<string | null> {
     const lowerMessage = message.toLowerCase();
@@ -102,6 +224,16 @@ export class ConversationOrchestrator {
     ) {
       logger.info('Routing to News subsystem');
       return await this.newsService.getNewsFormatted();
+    }
+
+    // Wolfram Alpha queries (computational/factual)
+    if (this.wolframService.isSuitableQuery(message)) {
+      logger.info('Routing to Wolfram Alpha subsystem');
+      const answer = await this.wolframService.getFormattedAnswer(message);
+      // If Wolfram couldn't answer, fall through to Claude
+      if (!answer.includes("couldn't find") && !answer.includes('encountered an error')) {
+        return answer;
+      }
     }
 
     // No subsystem match

@@ -101,6 +101,10 @@ export class InputHandler extends EventEmitter {
         this.emit('exit');
         break;
 
+      // case '/restart':
+      //   this.emit('restart');
+      //   break;
+
       case '/clear':
         this.emit('clear');
         break;

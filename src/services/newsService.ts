@@ -5,7 +5,7 @@ import { Cache } from '../utils/cache.js';
 import { config } from '../config/index.js';
 
 const WIKINEWS_RSS_URL =
-  'https://en.wikinews.org/w/index.php?title=Special:NewsFeed&feed=atom&categories=Published&notcategories=No%20publish%7CArchived%7CAutoArchived%7Cdisputed&namespace=0&count=5&hourcount=124&ordermethod=categoryadd&stablepages=only';
+  'https://en.wikinews.org/w/index.php?title=Special:NewsFeed&feed=atom&categories=Published&notcategories=No%20publish%7CArchived%7CAutoArchived%7Cdisputed&namespace=0&count=30&hourcount=124&ordermethod=categoryadd&stablepages=only';
 
 /**
  * News Service

@@ -53,6 +53,7 @@ Environment Variables:
 
 Commands (in terminal):
   /quit, /exit     Exit the application
+  /restart         Restart the application
   /clear           Clear conversation
   /refresh         Force refresh weather and news
   /help            Show help in terminal
@@ -190,6 +191,10 @@ class PACETerminal {
       this.shutdown();
     });
 
+    // this.input.on('restart', () => {
+    //   this.restart();
+    // });
+
     this.input.on('prompt', () => {
       this.renderUI();
     });
@@ -253,6 +258,7 @@ class PACETerminal {
   private showHelp(): void {
     const helpText = `Available commands:
 /quit, /exit - Exit the application
+/restart - Restart the application
 /clear - Clear conversation
 /refresh - Force refresh weather and news
 /help - Show this help message
@@ -279,6 +285,29 @@ Just type your message and press Enter to chat with PACE!`;
     // Initialize input handler
     this.input.init();
     this.input.enable();
+  }
+
+  /**
+   * Restart the application
+   */
+  private restart(): void {
+    // Stop all managers
+    this.timeManager.stop();
+    this.weatherManager.stop();
+    this.newsManager.stop();
+
+    // Disconnect client
+    this.client.disconnect();
+
+    // Close input
+    this.input.close();
+
+    // Clear screen and show restart message
+    console.clear();
+    console.log('Restarting PACE Terminal...');
+    
+    // Exit the process to trigger a restart (typically via process manager or npm script)
+    process.exit(0);
   }
 
   /**

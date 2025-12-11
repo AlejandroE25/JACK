@@ -5,6 +5,9 @@ import { ClaudeClient } from '../clients/claudeClient.js';
 import { MemoryStore } from '../services/memoryStore.js';
 import { WeatherService } from '../services/weatherService.js';
 import { NewsService } from '../services/newsService.js';
+import { WolframService } from '../services/wolframService.js';
+import { RoutingService } from '../services/routingService.js';
+import { RoutingPredictor } from '../services/routingPredictor.js';
 import { ConversationOrchestrator } from '../services/conversationOrchestrator.js';
 
 /**
@@ -16,6 +19,9 @@ class PACEServer {
   private memoryStore: MemoryStore;
   private weatherService: WeatherService;
   private newsService: NewsService;
+  private wolframService: WolframService;
+  private routingService: RoutingService;
+  private routingPredictor: RoutingPredictor;
   private orchestrator: ConversationOrchestrator;
 
   constructor() {
@@ -24,11 +30,17 @@ class PACEServer {
     this.memoryStore = new MemoryStore(config.databasePath);
     this.weatherService = new WeatherService();
     this.newsService = new NewsService();
+    this.wolframService = new WolframService();
+    this.routingService = new RoutingService();
+    this.routingPredictor = new RoutingPredictor();
     this.orchestrator = new ConversationOrchestrator(
       this.claudeClient,
       this.memoryStore,
       this.weatherService,
-      this.newsService
+      this.newsService,
+      this.wolframService,
+      this.routingService,
+      this.routingPredictor
     );
 
     // Initialize WebSocket server
