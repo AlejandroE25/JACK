@@ -54,6 +54,8 @@ data/
 .project
 .classpath
 .settings/
+.claude/
+CLAUDE.md
 
 # OS
 .DS_Store
