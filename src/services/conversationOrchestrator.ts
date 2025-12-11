@@ -138,7 +138,7 @@ Be conversational, friendly, and helpful. When appropriate, use information from
    */
   private async extractAndStoreMemories(
     userMessage: string,
-    assistantResponse: string
+    _assistantResponse: string
   ): Promise<void> {
     // Check for explicit "remember" commands
     if (userMessage.toLowerCase().includes('remember')) {
@@ -166,7 +166,6 @@ Be conversational, friendly, and helpful. When appropriate, use information from
    * Extract preferences from user messages
    */
   private extractPreferences(message: string): void {
-    const lowerMessage = message.toLowerCase();
 
     // Match "my favorite X is Y" patterns
     const favoritePattern = /my favorite (\w+) is (.+?)(?:\.|$)/i;
@@ -211,7 +210,7 @@ Be conversational, friendly, and helpful. When appropriate, use information from
   /**
    * Handle special commands
    */
-  async handleCommand(clientId: string, command: string): Promise<string | null> {
+  async handleCommand(_clientId: string, command: string): Promise<string | null> {
     const lowerCommand = command.toLowerCase().trim();
 
     // What do you remember about me?
