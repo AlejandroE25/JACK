@@ -12,6 +12,7 @@ build-python/
 .ipynb_checkpoints
 *.wav
 *.mp3
+old_python_classes/
 
 # Node.js
 node_modules/

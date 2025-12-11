@@ -9,7 +9,7 @@ import { config } from '../config/index.js';
  */
 export class ClaudeClient {
   private client: Anthropic;
-  private model: string = 'claude-3-5-sonnet-20241022';
+  private model: string = 'claude-sonnet-4-5';
 
   constructor(apiKey?: string) {
     this.client = new Anthropic({
