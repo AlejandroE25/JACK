@@ -6,44 +6,59 @@
   "main": "dist/server/index.js",
   "scripts": {
     "dev": "tsx watch src/server/index.ts",
-    "dev:cli": "tsx cli/index.ts",
+    "dev:cli": "tsx src/cli/index.ts",
+    "cli": "tsx src/cli/index.ts",
     "build": "tsc",
-    "build:cli": "bun build --compile cli/index.ts --outfile build/pace",
-    "build:cli:all": "npm run build:cli:linux && npm run build:cli:macos && npm run build:cli:windows",
-    "build:cli:linux": "bun build --compile cli/index.ts --outfile build/pace-linux --target=node",
-    "build:cli:macos": "bun build --compile cli/index.ts --outfile build/pace-macos --target=node",
-    "build:cli:windows": "bun build --compile cli/index.ts --outfile build/pace-windows.exe --target=node",
+    "build:cli": "tsc && chmod +x dist/cli/index.js",
+    "bundle:cli": "esbuild src/cli/index.ts --bundle --platform=node --target=node18 --format=cjs --outfile=build/bundle.cjs --external:ws --external:better-sqlite3",
+    "build:standalone": "npm run bundle:cli && npm run pkg:all",
+    "pkg:all": "npm run pkg:mac && npm run pkg:linux && npm run pkg:win",
+    "pkg:mac": "pkg build/bundle.cjs --targets node18-macos-x64 --output build/pace-macos",
+    "pkg:linux": "pkg build/bundle.cjs --targets node18-linux-x64 --output build/pace-linux",
+    "pkg:win": "pkg build/bundle.cjs --targets node18-win-x64 --output build/pace-windows.exe",
     "start": "node dist/server/index.js",
+    "start:cli": "node dist/cli/index.js",
     "test": "vitest",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",
-    "lint": "eslint src tests cli --ext .ts",
-    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"cli/**/*.ts\"",
+    "lint": "eslint src tests --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "typecheck": "tsc --noEmit"
   },
-  "keywords": ["ai", "assistant", "websocket", "claude", "jarvis"],
+  "keywords": [
+    "ai",
+    "assistant",
+    "websocket",
+    "claude",
+    "jarvis"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",
     "better-sqlite3": "^11.5.0",
+    "boxen": "^8.0.1",
+    "chalk": "^5.6.2",
     "dotenv": "^16.4.5",
     "feedparser": "^2.2.10",
     "node-fetch": "^3.3.2",
     "openai": "^4.72.0",
+    "rss-parser": "^3.13.0",
     "sax": "^1.4.1",
-    "ws": "^8.18.0"
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
-    "@types/node": "^22.9.3",
-    "@types/ws": "^8.5.13",
+    "@types/node": "^22.19.2",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.15.0",
     "@typescript-eslint/parser": "^8.15.0",
     "@vitest/coverage-v8": "^2.1.6",
+    "esbuild": "^0.27.1",
     "eslint": "^9.15.0",
+    "pkg": "^5.8.1",
     "prettier": "^3.3.3",
     "sinon": "^19.0.2",
     "tsx": "^4.19.2",
@@ -52,5 +67,11 @@
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "pkg": {
+    "assets": [
+      "node_modules/**/*"
+    ],
+    "outputPath": "build"
   }
 }

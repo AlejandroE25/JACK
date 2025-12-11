@@ -146,9 +146,9 @@ export class ConversationOrchestrator {
    * Build system prompt with relevant memories
    */
   private buildSystemPrompt(memories: Memory[]): string {
-    let prompt = `You are PACE, a helpful AI assistant with persistent memory. You remember important details about the user and can recall them in future conversations.
+    let prompt = `You are PACE, a helpful AI assistant with persistent memory, much like JARVIS. You remember important details about the user and can recall them in future conversations.
 
-Be conversational, friendly, and helpful. When appropriate, use information from your memories to provide personalized responses.`;
+Be helpful, but understand that that sometimes means being concise. When appropriate, use information from your memories to provide personalized responses.`;
 
     if (memories.length > 0) {
       prompt += '\n\nWhat you remember:\n';

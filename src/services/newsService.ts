@@ -1,12 +1,11 @@
-// @ts-ignore - No types available for feedparser
-import FeedParser from 'feedparser';
+import Parser from 'rss-parser';
 import { NewsItem } from '../types/index.js';
 import { logger } from '../utils/logger.js';
 import { Cache } from '../utils/cache.js';
 import { config } from '../config/index.js';
 
 const WIKINEWS_RSS_URL =
-  'https://en.wikinews.org/w/index.php?title=Special:NewsFeed&feed=atom&categories=Published&notcategories=No%20publish%7CArchived%7CAutoArchived%7Cdisputed&namespace=0&count=30&hourcount=124&ordermethod=categoryadd&stablepages=only';
+  'https://en.wikinews.org/w/index.php?title=Special:NewsFeed&feed=atom&categories=Published&notcategories=No%20publish%7CArchived%7CAutoArchived%7Cdisputed&namespace=0&count=5&hourcount=124&ordermethod=categoryadd&stablepages=only';
 
 /**
  * News Service
@@ -14,9 +13,11 @@ const WIKINEWS_RSS_URL =
  */
 export class NewsService {
   private cache: Cache<NewsItem[]>;
+  private parser: Parser;
 
   constructor() {
     this.cache = new Cache<NewsItem[]>();
+    this.parser = new Parser();
   }
 
   /**
@@ -31,13 +32,9 @@ export class NewsService {
     }
 
     try {
-      const response = await fetch(WIKINEWS_RSS_URL);
+      const feed = await this.parser.parseURL(WIKINEWS_RSS_URL);
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch news: ${response.status}`);
-      }
-
-      const news = await this.parseRSSFeed(response.body);
+      const news = this.parseRSSFeed(feed);
 
       // Cache for 1 hour
       this.cache.set('news', news, config.newsCacheTTL);
@@ -51,40 +48,14 @@ export class NewsService {
   }
 
   /**
-   * Parse RSS feed using feedparser
+   * Parse RSS feed items from rss-parser response
    */
-  private parseRSSFeed(stream: any): Promise<NewsItem[]> {
-    return new Promise((resolve, reject) => {
-      const feedparser = new FeedParser({});
-      const items: NewsItem[] = [];
-
-      feedparser.on('error', (error: Error) => {
-        logger.error('Feed parser error:', error);
-        reject(new Error('Failed to parse RSS feed'));
-      });
-
-      feedparser.on('readable', function (this: any) {
-        let item;
-        while ((item = this.read())) {
-          items.push({
-            title: item.title,
-            link: item.link,
-            published: item.pubdate,
-          });
-        }
-      });
-
-      feedparser.on('end', () => {
-        resolve(items);
-      });
-
-      // Pipe the response stream to feedparser
-      if (stream && typeof stream.pipe === 'function') {
-        stream.pipe(feedparser);
-      } else {
-        reject(new Error('Invalid stream'));
-      }
-    });
+  private parseRSSFeed(feed: Parser.Output<any>): NewsItem[] {
+    return feed.items.map((item) => ({
+      title: item.title || '',
+      link: item.link || '',
+      published: item.pubDate || item.isoDate || new Date().toISOString(),
+    }));
   }
 
   /**
