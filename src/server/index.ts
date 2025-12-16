@@ -9,39 +9,39 @@ import { WolframService } from '../services/wolframService.js';
 import { RoutingService } from '../services/routingService.js';
 import { RoutingPredictor } from '../services/routingPredictor.js';
 import { ConversationOrchestrator } from '../services/conversationOrchestrator.js';
+import { PluginRegistry } from '../plugins/pluginRegistry.js';
+import { WeatherPlugin } from '../plugins/core/weatherPlugin.js';
+import { NewsPlugin } from '../plugins/core/newsPlugin.js';
+import { WolframPlugin } from '../plugins/core/wolframPlugin.js';
+import { MemoryPlugin } from '../plugins/core/memoryPlugin.js';
+import { AgentOrchestrator } from '../agent/agentOrchestrator.js';
 
 /**
  * Main PACE Server Entry Point
  */
 class PACEServer {
   private wsServer: PACEWebSocketServer;
-  private claudeClient: ClaudeClient;
-  private memoryStore: MemoryStore;
-  private weatherService: WeatherService;
-  private newsService: NewsService;
-  private wolframService: WolframService;
-  private routingService: RoutingService;
-  private routingPredictor: RoutingPredictor;
-  private orchestrator: ConversationOrchestrator;
+  private claudeClient?: ClaudeClient;
+  private memoryStore?: MemoryStore;
+  private weatherService?: WeatherService;
+  private newsService?: NewsService;
+  private wolframService?: WolframService;
+  private routingService?: RoutingService;
+  private routingPredictor?: RoutingPredictor;
+  private legacyOrchestrator?: ConversationOrchestrator;
+  private agentOrchestrator?: AgentOrchestrator;
+  private pluginRegistry?: PluginRegistry;
 
   constructor() {
-    // Initialize AI and memory systems
-    this.claudeClient = new ClaudeClient();
-    this.memoryStore = new MemoryStore(config.databasePath);
-    this.weatherService = new WeatherService();
-    this.newsService = new NewsService();
-    this.wolframService = new WolframService();
-    this.routingService = new RoutingService();
-    this.routingPredictor = new RoutingPredictor();
-    this.orchestrator = new ConversationOrchestrator(
-      this.claudeClient,
-      this.memoryStore,
-      this.weatherService,
-      this.newsService,
-      this.wolframService,
-      this.routingService,
-      this.routingPredictor
-    );
+    logger.info(`Initializing PACE server in ${config.enableAgentMode ? 'AGENT' : 'LEGACY'} mode`);
+
+    if (config.enableAgentMode) {
+      // Agent mode - use plugin system
+      this.initializeAgentMode();
+    } else {
+      // Legacy mode - use existing orchestrator
+      this.initializeLegacyMode();
+    }
 
     // Initialize WebSocket server
     this.wsServer = new PACEWebSocketServer({
@@ -54,21 +54,93 @@ class PACEServer {
   }
 
   /**
+   * Initialize agent mode with plugin system
+   */
+  private async initializeAgentMode(): Promise<void> {
+    logger.info('Initializing agent mode...');
+
+    // Create plugin registry
+    this.pluginRegistry = new PluginRegistry();
+
+    // Register core plugins
+    const weatherPlugin = new WeatherPlugin();
+    const newsPlugin = new NewsPlugin();
+    const wolframPlugin = new WolframPlugin();
+    const memoryPlugin = new MemoryPlugin();
+
+    await this.pluginRegistry.register(weatherPlugin);
+    await this.pluginRegistry.register(newsPlugin);
+    await this.pluginRegistry.register(wolframPlugin);
+    await this.pluginRegistry.register(memoryPlugin);
+
+    logger.info(`Registered ${this.pluginRegistry.getPluginCount()} core plugins`);
+
+    // Create agent orchestrator
+    this.agentOrchestrator = new AgentOrchestrator(
+      config.anthropicApiKey,
+      this.pluginRegistry,
+      './data/audit.db',
+      config.agentPlanningModel
+    );
+
+    logger.info('Agent mode initialized successfully');
+  }
+
+  /**
+   * Initialize legacy mode with existing services
+   */
+  private initializeLegacyMode(): void {
+    logger.info('Initializing legacy mode...');
+
+    // Initialize AI and memory systems
+    this.claudeClient = new ClaudeClient();
+    this.memoryStore = new MemoryStore(config.databasePath);
+    this.weatherService = new WeatherService();
+    this.newsService = new NewsService();
+    this.wolframService = new WolframService();
+    this.routingService = new RoutingService();
+    this.routingPredictor = new RoutingPredictor();
+    this.legacyOrchestrator = new ConversationOrchestrator(
+      this.claudeClient,
+      this.memoryStore,
+      this.weatherService,
+      this.newsService,
+      this.wolframService,
+      this.routingService,
+      this.routingPredictor
+    );
+
+    logger.info('Legacy mode initialized successfully');
+  }
+
+  /**
    * Handle incoming messages from clients
    */
   private async handleMessage(clientId: string, message: string): Promise<string> {
     logger.info(`Processing message from ${clientId}: ${message}`);
 
     try {
-      // Check for special commands first
-      const commandResponse = await this.orchestrator.handleCommand(clientId, message);
-      if (commandResponse) {
-        return commandResponse;
-      }
+      if (config.enableAgentMode) {
+        // Agent mode
+        if (!this.agentOrchestrator) {
+          throw new Error('Agent orchestrator not initialized');
+        }
+        return await this.agentOrchestrator.processMessage(clientId, message);
+      } else {
+        // Legacy mode
+        if (!this.legacyOrchestrator) {
+          throw new Error('Legacy orchestrator not initialized');
+        }
 
-      // Process message through orchestrator
-      const response = await this.orchestrator.processMessage(clientId, message);
-      return response;
+        // Check for special commands first
+        const commandResponse = await this.legacyOrchestrator.handleCommand(clientId, message);
+        if (commandResponse) {
+          return commandResponse;
+        }
+
+        // Process message through orchestrator
+        return await this.legacyOrchestrator.processMessage(clientId, message);
+      }
     } catch (error) {
       logger.error('Error handling message:', error);
       return 'Sorry, I encountered an error. Please try again.';
@@ -101,7 +173,19 @@ class PACEServer {
   async stop(): Promise<void> {
     logger.info('Stopping PACE server...');
     await this.wsServer.stop();
-    this.memoryStore.close();
+
+    if (config.enableAgentMode) {
+      // Shutdown agent orchestrator
+      if (this.agentOrchestrator) {
+        await this.agentOrchestrator.shutdown();
+      }
+    } else {
+      // Close legacy memory store
+      if (this.memoryStore) {
+        this.memoryStore.close();
+      }
+    }
+
     logger.info('✓ PACE server stopped');
   }
 

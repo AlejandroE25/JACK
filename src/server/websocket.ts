@@ -72,9 +72,9 @@ export class PACEWebSocketServer {
     const welcomeMessage = ' $$ Hello! I am PACE, your personal assistant.';
     ws.send(welcomeMessage);
 
-    // Handle incoming messages
-    ws.on('message', async (data: Buffer) => {
-      await this.handleMessage(clientId, data.toString());
+    // Handle incoming messages (non-blocking for concurrent support)
+    ws.on('message', (data: Buffer) => {
+      this.handleMessage(clientId, data.toString());
     });
 
     // Handle client disconnect
@@ -89,9 +89,10 @@ export class PACEWebSocketServer {
   }
 
   /**
-   * Handle incoming message from client
+   * Handle incoming message from client (non-blocking)
+   * Messages are processed asynchronously to support concurrent conversations
    */
-  private async handleMessage(clientId: string, message: string): Promise<void> {
+  private handleMessage(clientId: string, message: string): void {
     const client = this.clients.get(clientId);
     if (!client) {
       logger.warn(`Message from unknown client: ${clientId}`);
@@ -101,33 +102,33 @@ export class PACEWebSocketServer {
     client.lastActivity = new Date();
     logger.info(`Client ${clientId} sent: ${message}`);
 
-    try {
-      // Send immediate acknowledgment for non-trivial queries
-      // Quick queries like "weather" or "news" don't need acknowledgment
-      const isQuickQuery = /^(what'?s? the )?(weather|news|time|date)[\?!.]*$/i.test(message.trim());
-
-      if (!isQuickQuery) {
-        const acknowledgmentMessage = `${message}$$🔍 Working on it... This may take a moment.`;
+    // Process message asynchronously (non-blocking)
+    (async () => {
+      try {
+        // Send immediate acknowledgment
+        const acknowledgmentMessage = `${message}$$🔍 Processing...`;
         this.broadcast(acknowledgmentMessage);
-      }
 
-      // Call the message handler if set
-      let response: string;
-      if (this.onMessageHandler) {
-        response = await this.onMessageHandler(clientId, message);
-      } else {
-        // Default echo response
-        response = `Echo: ${message}`;
-      }
+        // Call the message handler if set
+        let response: string;
+        if (this.onMessageHandler) {
+          response = await this.onMessageHandler(clientId, message);
+        } else {
+          // Default echo response
+          response = `Echo: ${message}`;
+        }
 
-      // Broadcast final response to all clients
-      const broadcastMessage = `${message}$$${response}`;
-      this.broadcast(broadcastMessage);
-    } catch (error) {
-      logger.error(`Error handling message from ${clientId}:`, error);
-      const errorMessage = `${message}$$Sorry, an error occurred processing your request.`;
-      client.send(errorMessage);
-    }
+        // Broadcast final response to all clients
+        const broadcastMessage = `${message}$$${response}`;
+        this.broadcast(broadcastMessage);
+      } catch (error) {
+        logger.error(`Error handling message from ${clientId}:`, error);
+        const errorMessage = `${message}$$Sorry, an error occurred processing your request.`;
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(errorMessage);
+        }
+      }
+    })();
   }
 
   /**
