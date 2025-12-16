@@ -140,6 +140,15 @@ export interface PACEConfig {
   routingModel: string;
   enableRoutingPrediction: boolean;
   enableSessionLearning: boolean;
+
+  // Agent System (Phase 1 - Foundation)
+  enableAgentMode: boolean;
+  agentPlanningModel: string;
+  maxExecutionSteps: number;
+  executionTimeout: number;
+  pluginDirectory: string;
+  enablePluginHotReload: boolean;
+  pluginTimeout: number;
 }
 
 /**

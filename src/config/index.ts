@@ -31,6 +31,15 @@ export function loadConfig(): PACEConfig {
     routingModel: process.env.ROUTING_MODEL || 'claude-haiku-4-5-20251001',
     enableRoutingPrediction: process.env.ENABLE_ROUTING_PREDICTION !== 'false',
     enableSessionLearning: process.env.ENABLE_SESSION_LEARNING !== 'false',
+
+    // Agent System Configuration (disabled by default for backward compatibility)
+    enableAgentMode: process.env.ENABLE_AGENT_MODE === 'true',
+    agentPlanningModel: process.env.AGENT_PLANNING_MODEL || 'claude-sonnet-4-5-20251101',
+    maxExecutionSteps: parseInt(process.env.MAX_EXECUTION_STEPS || '20', 10),
+    executionTimeout: parseInt(process.env.EXECUTION_TIMEOUT || '60000', 10),
+    pluginDirectory: process.env.PLUGIN_DIRECTORY || './src/plugins',
+    enablePluginHotReload: process.env.ENABLE_PLUGIN_HOT_RELOAD === 'true',
+    pluginTimeout: parseInt(process.env.PLUGIN_TIMEOUT || '10000', 10),
   };
 
   // Validate required API keys
