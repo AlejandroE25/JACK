@@ -1,6 +1,7 @@
 package managers
 
 import (
+	"strings"
 	"sync"
 	"time"
 )
@@ -11,8 +12,9 @@ type ConversationData struct {
 	Response       string
 	FullResponse   string // Complete response for proper markdown parsing
 	Processing     bool
-	ScrollOffset   int // For auto-scrolling long responses
+	ScrollOffset   int  // For auto-scrolling long responses
 	IsFullyTyped   bool // Whether typewriter effect is complete
+	LoadingFrame   int  // Current frame of loading animation
 }
 
 // ConversationManager manages conversation state
@@ -21,34 +23,97 @@ type ConversationManager struct {
 	mu      sync.RWMutex
 	timeout time.Duration
 
-	updates chan ConversationData
+	updates       chan ConversationData
+	stopAnimation chan bool
 }
 
 // NewConversationManager creates a new ConversationManager
 func NewConversationManager(timeout time.Duration) *ConversationManager {
 	return &ConversationManager{
-		timeout: timeout,
-		updates: make(chan ConversationData, 1),
+		timeout:       timeout,
+		updates:       make(chan ConversationData, 1),
+		stopAnimation: make(chan bool, 1),
 	}
 }
 
 // SetQuery sets the current query and marks as processing
 func (cm *ConversationManager) SetQuery(query string) {
 	cm.mu.Lock()
-	defer cm.mu.Unlock()
-
 	cm.data.Query = query
-	cm.data.Response = "Thinking..."
+	cm.data.Response = ""
 	cm.data.Processing = true
+	cm.data.LoadingFrame = 0
+	cm.mu.Unlock()
 
 	cm.sendUpdate()
+
+	// Start loading animation
+	go cm.startLoadingAnimation()
 
 	// Start timeout timer
 	go cm.startTimeout()
 }
 
+// startLoadingAnimation animates a loading indicator while processing
+func (cm *ConversationManager) startLoadingAnimation() {
+	// Spinner frames using Braille characters for smooth animation
+	spinners := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
+	// Loading messages that cycle with spinner
+	loadingStates := []string{
+		"Thinking",
+		"Processing",
+		"Analyzing",
+		"Searching",
+	}
+
+	loadingMessages := make([]string, 0)
+
+	// Generate combinations with dot animation
+	for _, state := range loadingStates {
+		for i := 0; i <= 3; i++ {
+			dots := strings.Repeat(".", i)
+			loadingMessages = append(loadingMessages, state+dots)
+		}
+	}
+
+	ticker := time.NewTicker(150 * time.Millisecond)
+	defer ticker.Stop()
+
+	frame := 0
+	for {
+		select {
+		case <-ticker.C:
+			cm.mu.Lock()
+			if !cm.data.Processing {
+				cm.mu.Unlock()
+				return
+			}
+			cm.data.LoadingFrame = frame
+
+			// Combine spinner with message
+			spinnerIdx := frame % len(spinners)
+			msgIdx := (frame / len(spinners)) % len(loadingMessages)
+			cm.data.Response = spinners[spinnerIdx] + " " + loadingMessages[msgIdx]
+
+			cm.mu.Unlock()
+			cm.sendUpdate()
+			frame++
+
+		case <-cm.stopAnimation:
+			return
+		}
+	}
+}
+
 // SetResponse sets the response with typewriter effect
 func (cm *ConversationManager) SetResponse(response string) {
+	// Stop loading animation
+	select {
+	case cm.stopAnimation <- true:
+	default:
+	}
+
 	cm.mu.Lock()
 	cm.data.Response = ""
 	cm.data.FullResponse = response
@@ -85,12 +150,19 @@ func (cm *ConversationManager) streamResponse(fullResponse string) {
 
 // Clear clears the conversation
 func (cm *ConversationManager) Clear() {
+	// Stop any running animations
+	select {
+	case cm.stopAnimation <- true:
+	default:
+	}
+
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
 	cm.data.Query = ""
 	cm.data.Response = ""
 	cm.data.Processing = false
+	cm.data.LoadingFrame = 0
 
 	cm.sendUpdate()
 }
@@ -98,6 +170,12 @@ func (cm *ConversationManager) Clear() {
 // startTimeout sets a timeout for the current query
 func (cm *ConversationManager) startTimeout() {
 	time.Sleep(cm.timeout)
+
+	// Stop any running animations
+	select {
+	case cm.stopAnimation <- true:
+	default:
+	}
 
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
