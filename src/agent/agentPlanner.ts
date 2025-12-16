@@ -24,7 +24,7 @@ export class AgentPlanner {
   constructor(
     apiKey: string,
     pluginRegistry: PluginRegistry,
-    planningModel: string = 'claude-sonnet-4-5-20251101'
+    planningModel: string = 'claude-sonnet-4-20250514'
   ) {
     this.anthropic = new Anthropic({ apiKey });
     this.pluginRegistry = pluginRegistry;

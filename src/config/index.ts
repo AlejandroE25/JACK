@@ -34,7 +34,7 @@ export function loadConfig(): PACEConfig {
 
     // Agent System Configuration (disabled by default for backward compatibility)
     enableAgentMode: process.env.ENABLE_AGENT_MODE === 'true',
-    agentPlanningModel: process.env.AGENT_PLANNING_MODEL || 'claude-sonnet-4-5-20251101',
+    agentPlanningModel: process.env.AGENT_PLANNING_MODEL || 'claude-sonnet-4-20250514',
     maxExecutionSteps: parseInt(process.env.MAX_EXECUTION_STEPS || '20', 10),
     executionTimeout: parseInt(process.env.EXECUTION_TIMEOUT || '60000', 10),
     pluginDirectory: process.env.PLUGIN_DIRECTORY || './src/plugins',
