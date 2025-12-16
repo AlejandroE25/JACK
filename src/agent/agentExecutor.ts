@@ -99,38 +99,68 @@ export class AgentExecutor extends EventEmitter {
       // Execute steps based on dependencies
       await this.executeSteps(plan.steps, execution, conversationHistory, correlationId);
 
-      // Execution completed
-      execution.status = ExecutionStatus.COMPLETED;
-      execution.completedAt = new Date();
+      // Check execution results
+      const failedSteps = Array.from(execution.stepExecutions.values()).filter(
+        (se) => se.status === ExecutionStatus.FAILED
+      );
+      const successfulSteps = Array.from(execution.stepExecutions.values()).filter(
+        (se) => se.status === ExecutionStatus.COMPLETED
+      );
 
       const duration = Date.now() - startTime;
       const toolsUsed = Array.from(
         new Set(plan.steps.map((s) => s.toolName))
       );
 
+      // Determine overall success (at least some steps succeeded)
+      const hasAnySuccess = successfulSteps.length > 0;
+      const allSucceeded = failedSteps.length === 0;
+
+      if (allSucceeded) {
+        execution.status = ExecutionStatus.COMPLETED;
+        this.emitProgress(execution, 'Execution completed successfully!', 100);
+      } else if (hasAnySuccess) {
+        execution.status = ExecutionStatus.COMPLETED;
+        this.emitProgress(
+          execution,
+          `Execution completed with ${failedSteps.length} failed step(s)`,
+          100
+        );
+      } else {
+        execution.status = ExecutionStatus.FAILED;
+        this.emitProgress(execution, 'All steps failed', 100);
+      }
+
+      execution.completedAt = new Date();
+
       this.auditLogger.log(
         clientId,
-        AuditEventType.EXECUTION_COMPLETED,
-        { planId: plan.id, duration, toolsUsed },
+        hasAnySuccess ? AuditEventType.EXECUTION_COMPLETED : AuditEventType.EXECUTION_FAILED,
+        {
+          planId: plan.id,
+          duration,
+          toolsUsed,
+          successfulSteps: successfulSteps.length,
+          failedSteps: failedSteps.length
+        },
         correlationId
       );
 
-      this.emitProgress(execution, 'Execution completed successfully!', 100);
-
       return {
-        success: true,
+        success: hasAnySuccess,
         finalAnswer: this.generateFinalAnswer(execution),
         stepResults: execution.results,
         duration,
         toolsUsed
       };
     } catch (error) {
+      // This catch is for unexpected errors during orchestration
       execution.status = ExecutionStatus.FAILED;
       execution.completedAt = new Date();
 
       const duration = Date.now() - startTime;
 
-      logger.error('Plan execution failed', { error, planId: plan.id });
+      logger.error('Plan execution failed unexpectedly', { error, planId: plan.id });
 
       this.auditLogger.log(
         clientId,
@@ -143,7 +173,7 @@ export class AgentExecutor extends EventEmitter {
 
       return {
         success: false,
-        finalAnswer: `I encountered an error: ${(error as Error).message}`,
+        finalAnswer: `I encountered an unexpected error: ${(error as Error).message}`,
         stepResults: execution.results,
         duration,
         toolsUsed: []
@@ -324,7 +354,28 @@ export class AgentExecutor extends EventEmitter {
       stepExecution.error = error as Error;
       stepExecution.completedAt = new Date();
 
-      throw error;
+      // Store failed result with error information
+      execution.results.set(step.id, {
+        success: false,
+        error: (error as Error).message,
+        data: null,
+        metadata: { duration: 0, cached: false }
+      });
+
+      this.auditLogger.log(
+        execution.clientId,
+        AuditEventType.TOOL_EXECUTED,
+        {
+          stepId: step.id,
+          toolName: step.toolName,
+          success: false,
+          error: (error as Error).message
+        },
+        correlationId
+      );
+
+      // Don't throw - allow execution to continue with other steps
+      logger.warn(`Step ${step.id} failed, continuing with remaining steps`);
     }
   }
 
@@ -369,7 +420,8 @@ export class AgentExecutor extends EventEmitter {
    * Generate final answer from execution results
    */
   private generateFinalAnswer(execution: PlanExecution): string {
-    const results: string[] = [];
+    const successfulResults: string[] = [];
+    const failedSteps: Array<{ step: string; error: string }> = [];
 
     for (const [stepId, result] of execution.results.entries()) {
       const stepExecution = execution.stepExecutions.get(stepId);
@@ -380,18 +432,37 @@ export class AgentExecutor extends EventEmitter {
       if (result.success && result.data) {
         // Use formatted output if available
         if (result.data.formatted) {
-          results.push(result.data.formatted);
+          successfulResults.push(result.data.formatted);
         } else if (typeof result.data === 'string') {
-          results.push(result.data);
+          successfulResults.push(result.data);
         } else if (result.data.message) {
-          results.push(result.data.message);
+          successfulResults.push(result.data.message);
         }
+      } else if (!result.success) {
+        // Track failed steps
+        failedSteps.push({
+          step: step.description,
+          error: result.error || 'Unknown error'
+        });
       }
     }
 
-    return results.length > 0
-      ? results.join('\n\n')
-      : 'Task completed successfully!';
+    // Build final answer
+    let answer = '';
+
+    if (successfulResults.length > 0) {
+      answer = successfulResults.join('\n\n');
+    }
+
+    if (failedSteps.length > 0) {
+      const failureNote = failedSteps.length === 1
+        ? `\n\n⚠️ Note: One step encountered an issue: ${failedSteps[0].step} - ${failedSteps[0].error}`
+        : `\n\n⚠️ Note: ${failedSteps.length} steps encountered issues:\n${failedSteps.map(f => `- ${f.step}: ${f.error}`).join('\n')}`;
+
+      answer += failureNote;
+    }
+
+    return answer.trim() || 'Task completed with partial results.';
   }
 
   /**
