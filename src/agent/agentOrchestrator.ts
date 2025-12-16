@@ -13,11 +13,13 @@ import { AgentExecutor } from './agentExecutor';
 import { PermissionManager } from './permissionManager';
 import { AuditLogger } from './auditLogger';
 import { ConcurrentRequestManager } from './concurrentRequestManager';
+import { SystemIntrospector } from './systemIntrospector';
 import {
   ExecutionResult,
   PlanningContext,
   AuditEventType,
-  TaskState
+  TaskState,
+  MetaQueryType
 } from '../types/agent';
 
 export class AgentOrchestrator {
@@ -27,6 +29,7 @@ export class AgentOrchestrator {
   private permissionManager: PermissionManager;
   private auditLogger: AuditLogger;
   private concurrentRequestManager: ConcurrentRequestManager;
+  private introspector: SystemIntrospector;
 
   /** Conversation history per client */
   private conversationHistory: Map<
@@ -47,6 +50,7 @@ export class AgentOrchestrator {
     this.auditLogger = new AuditLogger(auditDbPath);
     this.permissionManager = new PermissionManager();
     this.concurrentRequestManager = new ConcurrentRequestManager();
+    this.introspector = new SystemIntrospector(pluginRegistry);
     this.planner = new AgentPlanner(anthropicApiKey, pluginRegistry, planningModel);
     this.executor = new AgentExecutor(
       pluginRegistry,
@@ -129,6 +133,24 @@ export class AgentOrchestrator {
     });
 
     try {
+      // Check if this is a meta-query about system capabilities
+      const metaQueryType = this.introspector.isMetaQuery(message);
+
+      if (metaQueryType) {
+        logger.info('Detected meta-query', { type: metaQueryType, message });
+
+        const response = this.handleMetaQuery(metaQueryType, message);
+
+        // Add response to history
+        history.push({
+          role: 'assistant',
+          content: response,
+          timestamp: new Date()
+        });
+
+        return response;
+      }
+
       // Check if this message relates to an active task
       const relatedTask = this.concurrentRequestManager.findRelatedTask(clientId, message);
 
@@ -319,6 +341,122 @@ export class AgentOrchestrator {
    */
   getAuditLogger(): AuditLogger {
     return this.auditLogger;
+  }
+
+  /**
+   * Handle meta-queries about system capabilities
+   */
+  private handleMetaQuery(metaQueryType: MetaQueryType, originalQuery: string): string {
+    switch (metaQueryType) {
+      case MetaQueryType.WHAT_CAN_YOU_DO:
+        return this.introspector.generateCapabilityDescription();
+
+      case MetaQueryType.CAPABILITY_LIST:
+        // Specific capability query like "Can you check weather?"
+        return this.introspector.answerSpecificCapabilityQuery(originalQuery);
+
+      case MetaQueryType.SYSTEM_STATUS: {
+        const status = this.introspector.getSystemStatus();
+
+        let response = `**System Status: ${status.overallHealth.toUpperCase()}**\n\n`;
+
+        for (const component of status.components) {
+          const icon = component.status === 'healthy' ? '✓' :
+                       component.status === 'degraded' ? '⚠️' : '✗';
+          response += `${icon} **${component.name}:** ${component.message}\n`;
+        }
+
+        return response;
+      }
+
+      case MetaQueryType.TOOL_HEALTH: {
+        const capabilities = this.introspector.getCapabilities();
+
+        let response = '**Tool Health Status:**\n\n';
+
+        for (const cap of capabilities) {
+          const icon = cap.status === 'healthy' ? '✓' : '⚠️';
+          response += `${icon} **${cap.category}:**\n`;
+
+          for (const tool of cap.tools) {
+            const toolIcon = tool.configured ? '  ✓' : '  ⚠️';
+            response += `${toolIcon} ${tool.name}: ${tool.description}\n`;
+          }
+
+          if (cap.requirements && cap.requirements.length > 0) {
+            response += `  Requirements: ${cap.requirements.join(', ')}\n`;
+          }
+          response += '\n';
+        }
+
+        return response;
+      }
+
+      case MetaQueryType.KNOWLEDGE_BOUNDARY: {
+        const boundaries = this.introspector.getKnowledgeBoundaries();
+
+        let response = '**My Knowledge & Access:**\n\n';
+
+        const available = boundaries.filter(b => b.hasAccess);
+        const unavailable = boundaries.filter(b => !b.hasAccess);
+
+        if (available.length > 0) {
+          response += '✓ **I have access to:**\n';
+          for (const boundary of available) {
+            response += `\n**${boundary.domain}:**\n`;
+            if (boundary.availableData) {
+              response += `  • ${boundary.availableData.join('\n  • ')}\n`;
+            }
+            if (boundary.relatedInfo) {
+              response += `  ℹ️ ${boundary.relatedInfo.join(', ')}\n`;
+            }
+          }
+        }
+
+        if (unavailable.length > 0) {
+          response += '\n⚠️ **I do not have access to:**\n';
+          for (const boundary of unavailable) {
+            response += `\n**${boundary.domain}:**\n`;
+            if (boundary.requirements) {
+              response += `  Needed: ${boundary.requirements.join(', ')}\n`;
+            }
+          }
+        }
+
+        return response;
+      }
+
+      case MetaQueryType.PLUGIN_INFO: {
+        const pluginMetadata = this.pluginRegistry.listPlugins();
+        const allTools = this.pluginRegistry.getAllTools();
+
+        let response = '**Installed Plugins:**\n\n';
+
+        for (const metadata of pluginMetadata) {
+          // Get tools for this plugin
+          const pluginTools = allTools.filter(tool => {
+            // Match by category or plugin ID (assuming category maps to plugin)
+            return metadata.tags?.includes(tool.category) ||
+                   tool.category.toLowerCase().includes(metadata.id.split('.')[1]?.toLowerCase() || '');
+          });
+
+          response += `**${metadata.name}** (v${metadata.version})\n`;
+          response += `  ${metadata.description}\n`;
+          if (pluginTools.length > 0) {
+            response += `  Tools: ${pluginTools.map(t => t.name).join(', ')}\n`;
+          }
+          response += '\n';
+        }
+
+        return response;
+      }
+
+      default:
+        return "I can help you understand my capabilities. Try asking:\n" +
+               "• 'What can you do?'\n" +
+               "• 'What's your system status?'\n" +
+               "• 'What data do you have access to?'";
+    }
   }
 
   /**
