@@ -38,7 +38,7 @@ export class AgentOrchestrator {
     anthropicApiKey: string,
     pluginRegistry: PluginRegistry,
     auditDbPath: string = './data/audit.db',
-    planningModel: string = 'claude-sonnet-4-5-20251101'
+    planningModel: string = 'claude-sonnet-4-20250514'
   ) {
     this.pluginRegistry = pluginRegistry;
     this.conversationHistory = new Map();
@@ -51,7 +51,8 @@ export class AgentOrchestrator {
     this.executor = new AgentExecutor(
       pluginRegistry,
       this.permissionManager,
-      this.auditLogger
+      this.auditLogger,
+      anthropicApiKey
     );
 
     // Setup event handlers

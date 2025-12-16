@@ -6,6 +6,7 @@
  */
 
 import { EventEmitter } from 'events';
+import Anthropic from '@anthropic-ai/sdk';
 import { logger } from '../utils/logger';
 import { PluginRegistry } from '../plugins/pluginRegistry';
 import { PermissionManager } from './permissionManager';
@@ -29,13 +30,17 @@ export class AgentExecutor extends EventEmitter {
   private auditLogger: AuditLogger;
   private maxRetries: number;
   private stepTimeout: number;
+  private anthropic: Anthropic;
+  private synthesisModel: string;
 
   constructor(
     pluginRegistry: PluginRegistry,
     permissionManager: PermissionManager,
     auditLogger: AuditLogger,
+    anthropicApiKey: string,
     maxRetries: number = 2,
-    stepTimeout: number = 30000
+    stepTimeout: number = 30000,
+    synthesisModel: string = 'claude-sonnet-4-20250514'
   ) {
     super();
     this.pluginRegistry = pluginRegistry;
@@ -43,6 +48,8 @@ export class AgentExecutor extends EventEmitter {
     this.auditLogger = auditLogger;
     this.maxRetries = maxRetries;
     this.stepTimeout = stepTimeout;
+    this.anthropic = new Anthropic({ apiKey: anthropicApiKey });
+    this.synthesisModel = synthesisModel;
 
     logger.info('Agent executor initialized');
   }
@@ -146,9 +153,16 @@ export class AgentExecutor extends EventEmitter {
         correlationId
       );
 
+      // Generate final answer with Claude synthesis
+      const finalAnswer = await this.generateFinalAnswer(
+        execution,
+        plan.originalQuery,
+        conversationHistory
+      );
+
       return {
         success: hasAnySuccess,
-        finalAnswer: this.generateFinalAnswer(execution),
+        finalAnswer,
         stepResults: execution.results,
         duration,
         toolsUsed
@@ -417,12 +431,17 @@ export class AgentExecutor extends EventEmitter {
   }
 
   /**
-   * Generate final answer from execution results
+   * Generate final answer from execution results using Claude synthesis
    */
-  private generateFinalAnswer(execution: PlanExecution): string {
-    const successfulResults: string[] = [];
+  private async generateFinalAnswer(
+    execution: PlanExecution,
+    originalQuery: string,
+    _conversationHistory: Array<{ role: 'user' | 'assistant'; content: string; timestamp: Date }>
+  ): Promise<string> {
+    const successfulResults: Array<{ step: string; result: any }> = [];
     const failedSteps: Array<{ step: string; error: string }> = [];
 
+    // Collect all results
     for (const [stepId, result] of execution.results.entries()) {
       const stepExecution = execution.stepExecutions.get(stepId);
       if (!stepExecution) continue;
@@ -430,16 +449,11 @@ export class AgentExecutor extends EventEmitter {
       const step = stepExecution.step;
 
       if (result.success && result.data) {
-        // Use formatted output if available
-        if (result.data.formatted) {
-          successfulResults.push(result.data.formatted);
-        } else if (typeof result.data === 'string') {
-          successfulResults.push(result.data);
-        } else if (result.data.message) {
-          successfulResults.push(result.data.message);
-        }
+        successfulResults.push({
+          step: step.description,
+          result: result.data
+        });
       } else if (!result.success) {
-        // Track failed steps
         failedSteps.push({
           step: step.description,
           error: result.error || 'Unknown error'
@@ -447,22 +461,84 @@ export class AgentExecutor extends EventEmitter {
       }
     }
 
-    // Build final answer
-    let answer = '';
-
-    if (successfulResults.length > 0) {
-      answer = successfulResults.join('\n\n');
+    // If no successful results, return error message
+    if (successfulResults.length === 0) {
+      return 'I was unable to complete any steps of your request. ' +
+        failedSteps.map(f => `${f.step} failed: ${f.error}`).join('. ');
     }
 
-    if (failedSteps.length > 0) {
-      const failureNote = failedSteps.length === 1
-        ? `\n\n⚠️ Note: One step encountered an issue: ${failedSteps[0].step} - ${failedSteps[0].error}`
-        : `\n\n⚠️ Note: ${failedSteps.length} steps encountered issues:\n${failedSteps.map(f => `- ${f.step}: ${f.error}`).join('\n')}`;
+    // Build context for Claude synthesis
+    const toolResultsContext = successfulResults.map((sr, idx) => {
+      const resultText = this.formatToolResult(sr.result);
+      return `Tool ${idx + 1} - ${sr.step}:\n${resultText}`;
+    }).join('\n\n');
 
-      answer += failureNote;
+    const failureContext = failedSteps.length > 0
+      ? `\n\nNote: Some steps failed:\n${failedSteps.map(f => `- ${f.step}: ${f.error}`).join('\n')}`
+      : '';
+
+    // Ask Claude to synthesize a natural response
+    const synthesisPrompt = `You are a helpful AI assistant. The user asked: "${originalQuery}"
+
+I executed the following tools to gather information:
+
+${toolResultsContext}${failureContext}
+
+Based on these tool results, provide a clear, natural, and helpful response to the user's original question. Don't just list the tool outputs - synthesize them into a coherent answer that directly addresses what the user asked for.
+
+If any steps failed, acknowledge it briefly but focus on what you were able to accomplish.`;
+
+    try {
+      logger.debug('Synthesizing final answer with Claude');
+
+      const response = await this.anthropic.messages.create({
+        model: this.synthesisModel,
+        max_tokens: 2000,
+        temperature: 0.7,
+        messages: [
+          {
+            role: 'user',
+            content: synthesisPrompt
+          }
+        ]
+      });
+
+      const content = response.content[0];
+      if (content.type !== 'text') {
+        throw new Error('Unexpected response type from Claude');
+      }
+
+      return content.text;
+    } catch (error) {
+      logger.error('Failed to synthesize answer with Claude', { error });
+
+      // Fallback to simple concatenation
+      const fallbackAnswer = successfulResults.map(sr => {
+        const resultText = this.formatToolResult(sr.result);
+        return `${sr.step}:\n${resultText}`;
+      }).join('\n\n');
+
+      return failedSteps.length > 0
+        ? `${fallbackAnswer}\n\n⚠️ Note: Some steps failed:\n${failedSteps.map(f => `- ${f.step}: ${f.error}`).join('\n')}`
+        : fallbackAnswer;
     }
+  }
 
-    return answer.trim() || 'Task completed with partial results.';
+  /**
+   * Format tool result for display
+   */
+  private formatToolResult(result: any): string {
+    if (result.formatted) {
+      return result.formatted;
+    } else if (typeof result === 'string') {
+      return result;
+    } else if (result.message) {
+      return result.message;
+    } else if (result.content) {
+      return result.content;
+    } else {
+      return JSON.stringify(result, null, 2);
+    }
   }
 
   /**
