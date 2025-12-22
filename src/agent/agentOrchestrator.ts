@@ -18,6 +18,10 @@ import { ErrorRecoveryManager } from './errorRecoveryManager';
 import { HealthMonitor } from './healthMonitor';
 import { SystemDiagnostics, DiagnosticLevel, DiagnosticStatus } from './diagnostics';
 import { GlobalContextStore } from './globalContextStore';
+import { ContextAnalyzer } from './contextAnalyzer';
+import { LearningEngine } from './learningEngine';
+import { PatternRecognition } from './patternRecognition';
+import { SuggestionEngine } from './suggestionEngine';
 import {
   PlanningContext,
   AuditEventType,
@@ -37,12 +41,19 @@ export class AgentOrchestrator {
   private healthMonitor: HealthMonitor;
   private diagnostics: SystemDiagnostics;
   private globalContext: GlobalContextStore;
+  private contextAnalyzer: ContextAnalyzer;
+  private learningEngine: LearningEngine;
+  private patternRecognition: PatternRecognition;
+  private suggestionEngine: SuggestionEngine;
 
   /** Conversation history per client */
   private conversationHistory: Map<
     string,
     Array<{ role: 'user' | 'assistant'; content: string; timestamp: Date }>
   >;
+
+  /** Last interaction ID per client (for follow-up tracking) */
+  private lastInteractionId: Map<string, string>;
 
   constructor(
     anthropicApiKey: string,
@@ -52,6 +63,7 @@ export class AgentOrchestrator {
   ) {
     this.pluginRegistry = pluginRegistry;
     this.conversationHistory = new Map();
+    this.lastInteractionId = new Map();
 
     // Initialize components
     this.auditLogger = new AuditLogger(auditDbPath);
@@ -74,6 +86,26 @@ export class AgentOrchestrator {
 
     // Initialize global context
     this.globalContext = new GlobalContextStore();
+
+    // Initialize learning and proactive intelligence
+    this.learningEngine = new LearningEngine(1000);
+    this.patternRecognition = new PatternRecognition(500);
+
+    // Initialize context analyzer for automatic learning
+    this.contextAnalyzer = new ContextAnalyzer(
+      anthropicApiKey,
+      this.globalContext
+    );
+
+    // Initialize suggestion engine (depends on learning and pattern recognition)
+    this.suggestionEngine = new SuggestionEngine(
+      anthropicApiKey,
+      this.globalContext,
+      this.patternRecognition,
+      this.learningEngine,
+      'claude-haiku-4-20250514',
+      0.7
+    );
 
     this.planner = new AgentPlanner(anthropicApiKey, pluginRegistry, planningModel);
     this.executor = new AgentExecutor(
@@ -255,6 +287,16 @@ export class AgentOrchestrator {
           timestamp: new Date()
         });
 
+        // Automatically analyze for context (non-blocking)
+        this.contextAnalyzer.analyzeConversation(
+          clientId,
+          message,
+          response,
+          history
+        ).catch(error => {
+          logger.error('Context analysis failed', { error, clientId });
+        });
+
         return response;
       }
 
@@ -319,6 +361,9 @@ export class AgentOrchestrator {
 
     // Execute asynchronously
     (async () => {
+      const startTime = Date.now();
+      let routedSubsystem = 'unknown';
+
       try {
         // Update task state
         this.concurrentRequestManager.updateTaskState(taskId, TaskState.ACTIVE);
@@ -336,6 +381,11 @@ export class AgentOrchestrator {
         const plan = await this.planner.createPlan(query, planningContext);
 
         task.planId = plan.id;
+
+        // Determine subsystem from plan (for learning)
+        if (plan.steps.length > 0 && plan.steps[0].toolName) {
+          routedSubsystem = plan.steps[0].toolName;
+        }
 
         this.auditLogger.log(
           clientId,
@@ -367,6 +417,75 @@ export class AgentOrchestrator {
           content: result.finalAnswer,
           timestamp: new Date()
         });
+
+        // Calculate response time
+        const responseTime = Date.now() - startTime;
+
+        // Record interaction for learning (non-blocking)
+        const interactionId = this.learningEngine.recordInteraction(
+          query,
+          routedSubsystem,
+          result.finalAnswer,
+          responseTime,
+          {
+            taskId,
+            planId: plan.id,
+            stepsExecuted: plan.steps.length
+          }
+        );
+
+        // Store interaction ID for follow-up tracking
+        this.lastInteractionId.set(clientId, interactionId.id);
+
+        // Record conversation pattern (non-blocking)
+        const currentContexts = Array.from(this.globalContext.getAll(clientId))
+          .map(ctx => ctx.key);
+        this.patternRecognition.recordConversation(routedSubsystem, currentContexts);
+
+        // Automatically analyze conversation for important context (non-blocking)
+        this.contextAnalyzer.analyzeConversation(
+          clientId,
+          query,
+          result.finalAnswer,
+          conversationHistory
+        ).catch(error => {
+          logger.error('Context analysis failed', { error, clientId });
+        });
+
+        // Generate proactive suggestions (non-blocking)
+        (async () => {
+          try {
+            const recentMessages = conversationHistory
+              .slice(-5)
+              .map(h => `${h.role}: ${h.content}`);
+
+            const suggestions = await this.suggestionEngine.generateSuggestions(
+              clientId,
+              recentMessages,
+              currentContexts
+            );
+
+            if (suggestions.length > 0) {
+              logger.info('Generated proactive suggestions', {
+                clientId,
+                count: suggestions.length,
+                suggestions: suggestions.map(s => ({
+                  type: s.type,
+                  priority: s.priority,
+                  content: s.content
+                }))
+              });
+
+              // Emit suggestions for the client
+              this.executor.emit('suggestions_generated', {
+                clientId,
+                suggestions
+              });
+            }
+          } catch (error) {
+            logger.error('Suggestion generation failed', { error, clientId });
+          }
+        })();
 
         // Emit result for WebSocket to send
         this.executor.emit('task_completed', {
@@ -425,8 +544,74 @@ export class AgentOrchestrator {
     return {
       tasks: this.concurrentRequestManager.getStatistics(),
       permissions: this.permissionManager.getStatistics(),
-      audit: this.auditLogger.getStatistics()
+      audit: this.auditLogger.getStatistics(),
+      learning: this.learningEngine.getMetrics(),
+      patterns: this.patternRecognition.getStatistics(),
+      suggestions: this.suggestionEngine.getStatistics()
     };
+  }
+
+  /**
+   * Get learning metrics
+   */
+  getLearningMetrics() {
+    return this.learningEngine.getMetrics();
+  }
+
+  /**
+   * Get detected patterns
+   */
+  getDetectedPatterns() {
+    return this.patternRecognition.getPatterns();
+  }
+
+  /**
+   * Get active suggestions for a client
+   */
+  getActiveSuggestions() {
+    return this.suggestionEngine.getActiveSuggestions();
+  }
+
+  /**
+   * Get active reminders
+   */
+  getActiveReminders() {
+    return this.suggestionEngine.getActiveReminders();
+  }
+
+  /**
+   * Record user feedback on a suggestion
+   */
+  recordSuggestionFeedback(
+    suggestionId: string,
+    action: 'accepted' | 'rejected' | 'ignored'
+  ): void {
+    this.suggestionEngine.recordSuggestionAction(suggestionId, action);
+  }
+
+  /**
+   * Record user rating for an interaction
+   */
+  recordInteractionRating(clientId: string, rating: number): void {
+    const lastId = this.lastInteractionId.get(clientId);
+    if (lastId) {
+      this.learningEngine.recordUserRating(lastId, rating);
+    }
+  }
+
+  /**
+   * Manually trigger proactive suggestions
+   */
+  async generateProactiveSuggestions(clientId: string): Promise<any[]> {
+    const history = this.conversationHistory.get(clientId) || [];
+    const recentMessages = history.slice(-5).map(h => `${h.role}: ${h.content}`);
+    const contexts = Array.from(this.globalContext.getAll(clientId)).map(ctx => ctx.key);
+
+    return await this.suggestionEngine.generateSuggestions(
+      clientId,
+      recentMessages,
+      contexts
+    );
   }
 
   /**

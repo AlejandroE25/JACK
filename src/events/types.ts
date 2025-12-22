@@ -1,0 +1,155 @@
+/**
+ * Event System Type Definitions
+ *
+ * Core types for the event-driven architecture including events,
+ * subscribers, filters, and queries.
+ */
+
+export enum EventType {
+  /** Sensor triggered (door, motion, temperature, etc.) */
+  SENSOR_TRIGGER = 'sensor_trigger',
+
+  /** Sensor detected anomaly or unusual pattern */
+  SENSOR_ANOMALY = 'sensor_anomaly',
+
+  /** Scheduled task executed */
+  SCHEDULED_TASK = 'scheduled_task',
+
+  /** Decision made by DecisionEngine */
+  DECISION_MADE = 'decision_made',
+
+  /** Decision requires user approval */
+  DECISION_REQUIRED = 'decision_required',
+
+  /** New capability gap detected */
+  CAPABILITY_GAP_DETECTED = 'capability_gap_detected',
+
+  /** Tool/plugin generated */
+  TOOL_GENERATED = 'tool_generated',
+
+  /** Tool/plugin deployed */
+  TOOL_DEPLOYED = 'tool_deployed',
+
+  /** Pattern detected by PatternRecognition */
+  PATTERN_DETECTED = 'pattern_detected',
+
+  /** Suggestion generated */
+  SUGGESTION_GENERATED = 'suggestion_generated',
+
+  /** Reminder triggered */
+  REMINDER_TRIGGERED = 'reminder_triggered',
+
+  /** System health check */
+  HEALTH_CHECK = 'health_check',
+
+  /** System error occurred */
+  SYSTEM_ERROR = 'system_error'
+}
+
+export enum EventPriority {
+  /** Low priority - process when idle */
+  LOW = 'low',
+
+  /** Medium priority - normal processing */
+  MEDIUM = 'medium',
+
+  /** High priority - process soon */
+  HIGH = 'high',
+
+  /** Urgent priority - process immediately */
+  URGENT = 'urgent'
+}
+
+export interface Event {
+  /** Unique event ID */
+  id?: string;
+
+  /** Event type */
+  type: EventType;
+
+  /** Processing priority */
+  priority?: EventPriority;
+
+  /** Source of the event (sensor ID, plugin ID, etc.) */
+  source: string;
+
+  /** Event payload (event-specific data) */
+  payload: Record<string, any>;
+
+  /** When the event occurred */
+  timestamp?: Date;
+
+  /** Additional metadata */
+  metadata?: Record<string, any>;
+}
+
+export interface EventSubscriber {
+  /** Unique subscriber ID */
+  id: string;
+
+  /** Event handler function */
+  handle: (event: Event) => Promise<void>;
+
+  /** Filter function - return true to handle event */
+  canHandle: (event: Event) => boolean;
+
+  /** Subscriber priority (higher = called first) */
+  priority: number;
+}
+
+export interface EventQuery {
+  /** Filter by event ID */
+  id?: string;
+
+  /** Filter by event type */
+  type?: EventType;
+
+  /** Filter by source */
+  source?: string;
+
+  /** Filter by priority */
+  priority?: EventPriority;
+
+  /** Events after this timestamp */
+  after?: Date;
+
+  /** Events before this timestamp */
+  before?: Date;
+
+  /** Maximum number of results */
+  limit?: number;
+}
+
+export interface EventFilter {
+  /** Event types to include */
+  types?: EventType[];
+
+  /** Event sources to include */
+  sources?: string[];
+
+  /** Minimum priority level */
+  minPriority?: EventPriority;
+
+  /** Custom filter function */
+  predicate?: (event: Event) => boolean;
+}
+
+export interface EventStatistics {
+  /** Total events in store */
+  totalEvents: number;
+
+  /** Events by type */
+  byType: Record<string, number>;
+
+  /** Events by source */
+  bySource: Record<string, number>;
+
+  /** Events by priority */
+  byPriority: Record<string, number>;
+
+  /** Oldest event timestamp */
+  oldestEvent?: Date;
+
+  /** Newest event timestamp */
+  newestEvent?: Date;
+}
