@@ -11,9 +11,9 @@ import {
   PluginCapability,
   ExecutionContext,
   ToolResult
-} from '../../types/plugin';
-import { NewsService } from '../../services/newsService';
-import { logger } from '../../utils/logger';
+} from '../../types/plugin.js';
+import { NewsService } from '../../services/newsService.js';
+import { logger } from '../../utils/logger.js';
 
 export class NewsPlugin implements Plugin {
   metadata: PluginMetadata = {

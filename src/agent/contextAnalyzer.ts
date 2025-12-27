@@ -6,10 +6,10 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import { logger } from '../utils/logger';
-import { GlobalContextStore } from './globalContextStore';
-import { ContextScope } from '../types/globalContext';
-import { MemoryStore } from '../services/memoryStore';
+import { logger } from '../utils/logger.js';
+import { GlobalContextStore } from './globalContextStore.js';
+import { ContextScope } from '../types/globalContext.js';
+import { MemoryStore } from '../services/memoryStore.js';
 
 export interface ExtractedContext {
   /** Type of information extracted */

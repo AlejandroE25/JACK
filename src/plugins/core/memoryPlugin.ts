@@ -2,9 +2,9 @@
  * Memory Plugin - Adapter for persistent memory storage
  */
 
-import { Plugin, PluginMetadata, PluginTool, PluginCapability, ExecutionContext, ToolResult } from '../../types/plugin';
-import { MemoryStore } from '../../services/memoryStore';
-import { logger } from '../../utils/logger';
+import { Plugin, PluginMetadata, PluginTool, PluginCapability, ExecutionContext, ToolResult } from '../../types/plugin.js';
+import { MemoryStore } from '../../services/memoryStore.js';
+import { logger } from '../../utils/logger.js';
 
 export class MemoryPlugin implements Plugin {
   metadata: PluginMetadata = {

@@ -7,13 +7,13 @@
 
 import { randomUUID } from 'crypto';
 import { EventEmitter } from 'events';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/logger.js';
 import {
   PermissionLevel,
   PermissionRequest,
   PermissionResponse
-} from '../types/agent';
-import { PluginCapability } from '../types/plugin';
+} from '../types/agent.js';
+import { PluginCapability } from '../types/plugin.js';
 
 export class PermissionManager extends EventEmitter {
   /** Active permission requests awaiting user response */

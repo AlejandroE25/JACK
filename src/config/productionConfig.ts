@@ -7,9 +7,9 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { AgentOrchestratorConfig } from '../orchestrator/types';
-import { DecisionRule } from '../decision/types';
-import { AutonomyLevel, RiskLevel } from '../decision/types';
+import { AgentOrchestratorConfig } from '../orchestrator/types.js';
+import { DecisionRule } from '../decision/types.js';
+import { AutonomyLevel, RiskLevel } from '../decision/types.js';
 
 /**
  * Configuration file format

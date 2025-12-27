@@ -8,13 +8,13 @@
 import { EventEmitter } from 'events';
 import { randomUUID } from 'crypto';
 import { logger } from '../utils/logger.js';
-import { EventStore } from './eventStore';
+import { EventStore } from './eventStore.js';
 import {
   Event,
   EventType,
   EventPriority,
   EventSubscriber
-} from './types';
+} from './types.js';
 
 interface QueuedEvent {
   event: Event;

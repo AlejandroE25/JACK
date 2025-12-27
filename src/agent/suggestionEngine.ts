@@ -8,16 +8,16 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { EventEmitter } from 'events';
 import { randomUUID } from 'crypto';
-import { logger } from '../utils/logger';
-import { GlobalContextStore } from './globalContextStore';
-import { PatternRecognition } from './patternRecognition';
-import { LearningEngine } from './learningEngine';
+import { logger } from '../utils/logger.js';
+import { GlobalContextStore } from './globalContextStore.js';
+import { PatternRecognition } from './patternRecognition.js';
+import { LearningEngine } from './learningEngine.js';
 import {
   ProactiveSuggestion,
   SuggestionType,
   SuggestionPriority,
   SmartReminder
-} from '../types/proactive';
+} from '../types/proactive.js';
 
 export class SuggestionEngine extends EventEmitter {
   private anthropic: Anthropic;

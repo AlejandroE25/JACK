@@ -6,28 +6,28 @@
  */
 
 import { randomUUID } from 'crypto';
-import { logger } from '../utils/logger';
-import { PluginRegistry } from '../plugins/pluginRegistry';
-import { AgentPlanner } from './agentPlanner';
-import { AgentExecutor } from './agentExecutor';
-import { PermissionManager } from './permissionManager';
-import { AuditLogger } from './auditLogger';
-import { ConcurrentRequestManager } from './concurrentRequestManager';
-import { SystemIntrospector } from './systemIntrospector';
-import { ErrorRecoveryManager } from './errorRecoveryManager';
-import { HealthMonitor } from './healthMonitor';
-import { SystemDiagnostics, DiagnosticLevel, DiagnosticStatus } from './diagnostics';
-import { GlobalContextStore } from './globalContextStore';
-import { ContextAnalyzer } from './contextAnalyzer';
-import { LearningEngine } from './learningEngine';
-import { PatternRecognition } from './patternRecognition';
-import { SuggestionEngine } from './suggestionEngine';
+import { logger } from '../utils/logger.js';
+import { PluginRegistry } from '../plugins/pluginRegistry.js';
+import { AgentPlanner } from './agentPlanner.js';
+import { AgentExecutor } from './agentExecutor.js';
+import { PermissionManager } from './permissionManager.js';
+import { AuditLogger } from './auditLogger.js';
+import { ConcurrentRequestManager } from './concurrentRequestManager.js';
+import { SystemIntrospector } from './systemIntrospector.js';
+import { ErrorRecoveryManager } from './errorRecoveryManager.js';
+import { HealthMonitor } from './healthMonitor.js';
+import { SystemDiagnostics, DiagnosticLevel, DiagnosticStatus } from './diagnostics.js';
+import { GlobalContextStore } from './globalContextStore.js';
+import { ContextAnalyzer } from './contextAnalyzer.js';
+import { LearningEngine } from './learningEngine.js';
+import { PatternRecognition } from './patternRecognition.js';
+import { SuggestionEngine } from './suggestionEngine.js';
 import {
   PlanningContext,
   AuditEventType,
   TaskState,
   MetaQueryType
-} from '../types/agent';
+} from '../types/agent.js';
 
 export class AgentOrchestrator {
   private pluginRegistry: PluginRegistry;

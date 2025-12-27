@@ -7,10 +7,10 @@
 
 import { EventEmitter } from 'events';
 import Anthropic from '@anthropic-ai/sdk';
-import { logger } from '../utils/logger';
-import { PluginRegistry } from '../plugins/pluginRegistry';
-import { PermissionManager } from './permissionManager';
-import { AuditLogger } from './auditLogger';
+import { logger } from '../utils/logger.js';
+import { PluginRegistry } from '../plugins/pluginRegistry.js';
+import { PermissionManager } from './permissionManager.js';
+import { AuditLogger } from './auditLogger.js';
 import {
   ExecutionPlan,
   ExecutionStep,
@@ -20,8 +20,8 @@ import {
   ProgressUpdate,
   AuditEventType,
   ContextUpdate
-} from '../types/agent';
-import { ExecutionContext } from '../types/plugin';
+} from '../types/agent.js';
+import { ExecutionContext } from '../types/plugin.js';
 
 export class AgentExecutor extends EventEmitter {
   private pluginRegistry: PluginRegistry;

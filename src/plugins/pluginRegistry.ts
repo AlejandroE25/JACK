@@ -11,8 +11,8 @@ import {
   type PluginTool,
   type PluginMetadata,
   type PluginRegistryEventData
-} from '../types/plugin';
-import { logger } from '../utils/logger';
+} from '../types/plugin.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * PluginRegistry manages all registered plugins and provides

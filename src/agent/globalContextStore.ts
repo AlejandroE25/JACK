@@ -7,7 +7,7 @@
 
 import { EventEmitter } from 'events';
 import { randomUUID } from 'crypto';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/logger.js';
 import {
   ContextValue,
   ContextScope,
@@ -18,7 +18,7 @@ import {
   CrossClientMessage,
   ContextSubscription,
   GlobalContextStats
-} from '../types/globalContext';
+} from '../types/globalContext.js';
 
 export class GlobalContextStore extends EventEmitter {
   private contextValues: Map<string, ContextValue>;

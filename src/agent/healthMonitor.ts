@@ -6,10 +6,10 @@
  */
 
 import { EventEmitter } from 'events';
-import { logger } from '../utils/logger';
-import { SystemDiagnostics, DiagnosticLevel, DiagnosticStatus } from './diagnostics';
-import { ErrorRecoveryManager } from './errorRecoveryManager';
-import { HealthMonitorConfig } from '../types/recovery';
+import { logger } from '../utils/logger.js';
+import { SystemDiagnostics, DiagnosticLevel, DiagnosticStatus } from './diagnostics.js';
+import { ErrorRecoveryManager } from './errorRecoveryManager.js';
+import { HealthMonitorConfig } from '../types/recovery.js';
 
 export class HealthMonitor extends EventEmitter {
   private diagnostics: SystemDiagnostics;

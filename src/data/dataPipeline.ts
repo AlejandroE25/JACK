@@ -8,9 +8,9 @@
  * sensor/monitoring plugins at the edge.
  */
 
-import { EventBus } from '../events/eventBus';
-import { EventType, EventPriority } from '../events/types';
-import { DataStorage } from './dataStorage';
+import { EventBus } from '../events/eventBus.js';
+import { EventType, EventPriority } from '../events/types.js';
+import { DataStorage } from './dataStorage.js';
 import {
   SensorReading,
   SensorType,
@@ -19,7 +19,7 @@ import {
   Trend,
   PipelineStatistics,
   AggregateQuery
-} from './types';
+} from './types.js';
 
 export class DataPipeline {
   private eventBus: EventBus;

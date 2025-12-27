@@ -13,8 +13,8 @@
  */
 
 import OpenAI from 'openai';
-import { EventBus } from '../../../events/eventBus';
-import { EventType, EventPriority } from '../../../events/types';
+import { EventBus } from '../../../events/eventBus.js';
+import { EventType, EventPriority } from '../../../events/types.js';
 
 /**
  * TTS configuration

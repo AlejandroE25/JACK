@@ -6,15 +6,15 @@
  * system status, and knowledge boundaries.
  */
 
-import { logger } from '../utils/logger';
-import { PluginRegistry } from '../plugins/pluginRegistry';
-import { config } from '../config';
+import { logger } from '../utils/logger.js';
+import { PluginRegistry } from '../plugins/pluginRegistry.js';
+import { config } from '../config/index.js';
 import {
   CapabilityDescription,
   HealthStatus,
   KnowledgeBoundary,
   MetaQueryType
-} from '../types/agent';
+} from '../types/agent.js';
 
 export class SystemIntrospector {
   private pluginRegistry: PluginRegistry;

@@ -7,7 +7,7 @@
 
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
-import { ConfigFile } from '../config/productionConfig';
+import { ConfigFile } from '../config/productionConfig.js';
 
 /**
  * Logger instance

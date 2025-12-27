@@ -7,13 +7,13 @@
 
 import { randomUUID } from 'crypto';
 import { EventEmitter } from 'events';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/logger.js';
 import {
   ActiveTask,
   TaskState,
   ContextUpdate,
   ExecutionResult
-} from '../types/agent';
+} from '../types/agent.js';
 
 export class ConcurrentRequestManager extends EventEmitter {
   /** Active tasks by client ID */

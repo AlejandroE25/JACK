@@ -12,11 +12,11 @@ import {
   PluginCapability,
   ExecutionContext,
   ToolResult
-} from '../../types/plugin';
-import { ErrorRecoveryManager } from '../../agent/errorRecoveryManager';
-import { HealthMonitor } from '../../agent/healthMonitor';
-import { HealthStatus, AlertSeverity } from '../../types/recovery';
-import { logger } from '../../utils/logger';
+} from '../../types/plugin.js';
+import { ErrorRecoveryManager } from '../../agent/errorRecoveryManager.js';
+import { HealthMonitor } from '../../agent/healthMonitor.js';
+import { HealthStatus, AlertSeverity } from '../../types/recovery.js';
+import { logger } from '../../utils/logger.js';
 
 export class RecoveryPlugin implements Plugin {
   readonly metadata: PluginMetadata = {

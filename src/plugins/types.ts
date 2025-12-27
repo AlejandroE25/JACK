@@ -5,8 +5,8 @@
  * monitoring and automation capabilities.
  */
 
-import { EventBus } from '../events/eventBus';
-import { DataPipeline } from '../data/dataPipeline';
+import { EventBus } from '../events/eventBus.js';
+import { DataPipeline } from '../data/dataPipeline.js';
 
 /**
  * Plugin lifecycle states

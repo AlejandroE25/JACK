@@ -12,10 +12,10 @@ import {
   PluginCapability,
   ExecutionContext,
   ToolResult
-} from '../../types/plugin';
-import { SystemDiagnostics, DiagnosticLevel } from '../../agent/diagnostics';
-import { PluginRegistry } from '../pluginRegistry';
-import { logger } from '../../utils/logger';
+} from '../../types/plugin.js';
+import { SystemDiagnostics, DiagnosticLevel } from '../../agent/diagnostics.js';
+import { PluginRegistry } from '../pluginRegistry.js';
+import { logger } from '../../utils/logger.js';
 
 export class DiagnosticPlugin implements Plugin {
   readonly metadata: PluginMetadata = {

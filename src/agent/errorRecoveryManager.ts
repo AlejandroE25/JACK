@@ -7,7 +7,7 @@
 
 import { EventEmitter } from 'events';
 import { randomUUID } from 'crypto';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/logger.js';
 import {
   RecoveryStrategy,
   RecoveryAction,
@@ -17,7 +17,7 @@ import {
   Alert,
   AlertSeverity,
   RecoveryMetrics
-} from '../types/recovery';
+} from '../types/recovery.js';
 
 export class ErrorRecoveryManager extends EventEmitter {
   private componentHealth: Map<string, ComponentHealth>;

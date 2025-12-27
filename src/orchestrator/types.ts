@@ -5,8 +5,8 @@
  * and health monitoring.
  */
 
-import { DecisionRule } from '../decision/types';
-import { AutonomyLevel, RiskLevel } from '../decision/types';
+import { DecisionRule } from '../decision/types.js';
+import { AutonomyLevel, RiskLevel } from '../decision/types.js';
 
 /**
  * System state

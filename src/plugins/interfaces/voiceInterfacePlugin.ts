@@ -12,22 +12,22 @@
  * - Publishes PERSONALITY_CHANGED events based on conversation context
  */
 
-import { BasePlugin } from '../basePlugin';
-import { PluginMetadata, PluginCapability, PluginConfig } from '../types';
-import { EventBus } from '../../events/eventBus';
-import { DataPipeline } from '../../data/dataPipeline';
-import { EventType, Event } from '../../events/types';
-import { TTSService } from './services/ttsService';
+import { BasePlugin } from '../basePlugin.js';
+import { PluginMetadata, PluginCapability, PluginConfig } from '../types.js';
+import { EventBus } from '../../events/eventBus.js';
+import { DataPipeline } from '../../data/dataPipeline.js';
+import { EventType, Event } from '../../events/types.js';
+import { TTSService } from './services/ttsService.js';
 import { randomUUID } from 'crypto';
-// import { STTService } from './services/sttService'; // TODO: Re-enable for STT
-// import { PersonalityManager } from './services/personalityManager'; // TODO
-// import { InterruptionManager } from './services/interruptionManager'; // TODO
-import { TTSCache } from './utils/ttsCache';
-import { WebRTCPeerManager } from './webrtc/webrtcPeerManager';
-import { SignalingService } from './webrtc/signalingService';
-import { AudioTrackProcessor } from './webrtc/audioTrackProcessor';
-import { PACEWebSocketServer } from '../../server/websocket';
-import { logger } from '../../utils/logger';
+// import { STTService } from './services/sttService.js'; // TODO: Re-enable for STT
+// import { PersonalityManager } from './services/personalityManager.js'; // TODO
+// import { InterruptionManager } from './services/interruptionManager.js'; // TODO
+import { TTSCache } from './utils/ttsCache.js';
+import { WebRTCPeerManager } from './webrtc/webrtcPeerManager.js';
+import { SignalingService } from './webrtc/signalingService.js';
+import { AudioTrackProcessor } from './webrtc/audioTrackProcessor.js';
+import { PACEWebSocketServer } from '../../server/websocket.js';
+import { logger } from '../../utils/logger.js';
 
 /**
  * Voice plugin configuration

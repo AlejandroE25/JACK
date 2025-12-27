@@ -8,12 +8,12 @@
  * - Error recovery
  */
 
-import { AgentOrchestrator } from './orchestrator/agentOrchestrator';
-import { ConfigLoader, ConfigFile } from './config/productionConfig';
-import { SystemState } from './orchestrator/types';
-import { ApiServer } from './api/apiServer';
-import { DataRetentionService } from './data/dataRetention';
-import { initializeLogger, Logger } from './utils/productionLogger';
+import { AgentOrchestrator } from './orchestrator/agentOrchestrator.js';
+import { ConfigLoader, ConfigFile } from './config/productionConfig.js';
+import { SystemState } from './orchestrator/types.js';
+import { ApiServer } from './api/apiServer.js';
+import { DataRetentionService } from './data/dataRetention.js';
+import { initializeLogger, Logger } from './utils/productionLogger.js';
 import * as fs from 'fs';
 import * as path from 'path';
 

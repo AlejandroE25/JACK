@@ -5,13 +5,13 @@
  * Manages lifecycle, health monitoring, and component coordination.
  */
 
-import { EventBus } from '../events/eventBus';
-import { EventStore } from '../events/eventStore';
-import { DataPipeline } from '../data/dataPipeline';
-import { DataStorage } from '../data/dataStorage';
-import { PluginManager } from '../plugins/pluginManager';
-import { DecisionEngine } from '../decision/decisionEngine';
-import { TemperatureSensorPlugin } from '../plugins/sensors/temperatureSensorPlugin';
+import { EventBus } from '../events/eventBus.js';
+import { EventStore } from '../events/eventStore.js';
+import { DataPipeline } from '../data/dataPipeline.js';
+import { DataStorage } from '../data/dataStorage.js';
+import { PluginManager } from '../plugins/pluginManager.js';
+import { DecisionEngine } from '../decision/decisionEngine.js';
+import { TemperatureSensorPlugin } from '../plugins/sensors/temperatureSensorPlugin.js';
 import {
   SystemState,
   SystemHealth,
@@ -19,7 +19,7 @@ import {
   ComponentHealth,
   ErrorSummary,
   AgentOrchestratorConfig
-} from './types';
+} from './types.js';
 
 /**
  * Agent Orchestrator

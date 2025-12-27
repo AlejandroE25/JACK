@@ -11,9 +11,9 @@ import {
   PluginCapability,
   ExecutionContext,
   ToolResult
-} from '../../types/plugin';
-import { WeatherService } from '../../services/weatherService';
-import { logger } from '../../utils/logger';
+} from '../../types/plugin.js';
+import { WeatherService } from '../../services/weatherService.js';
+import { logger } from '../../utils/logger.js';
 
 export class WeatherPlugin implements Plugin {
   metadata: PluginMetadata = {

@@ -5,10 +5,10 @@
  * health monitoring, error tracking, and polling (for MonitoringPlugins).
  */
 
-import { EventBus } from '../events/eventBus';
-import { DataPipeline } from '../data/dataPipeline';
-import { Event } from '../events/types';
-import { SensorReading } from '../data/types';
+import { EventBus } from '../events/eventBus.js';
+import { DataPipeline } from '../data/dataPipeline.js';
+import { Event } from '../events/types.js';
+import { SensorReading } from '../data/types.js';
 import {
   Plugin,
   MonitoringPlugin,
@@ -16,7 +16,7 @@ import {
   PluginState,
   PluginMetadata,
   PluginHealth
-} from './types';
+} from './types.js';
 
 export abstract class BasePlugin implements Plugin, MonitoringPlugin {
   public readonly metadata: PluginMetadata;

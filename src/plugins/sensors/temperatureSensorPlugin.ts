@@ -5,10 +5,10 @@
  * and publishes events to the EventBus.
  */
 
-import { BasePlugin } from '../basePlugin';
-import { PluginMetadata, PluginCapability, PluginConfig } from '../types';
-import { SensorType, SensorReading } from '../../data/types';
-import { EventType, EventPriority } from '../../events/types';
+import { BasePlugin } from '../basePlugin.js';
+import { PluginMetadata, PluginCapability, PluginConfig } from '../types.js';
+import { SensorType, SensorReading } from '../../data/types.js';
+import { EventType, EventPriority } from '../../events/types.js';
 
 /**
  * Temperature sensor configuration

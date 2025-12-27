@@ -9,12 +9,12 @@ import Database from 'better-sqlite3';
 import { randomUUID } from 'crypto';
 import { existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/logger.js';
 import {
   AuditEntry,
   AuditEventType,
   AuditQueryCriteria
-} from '../types/agent';
+} from '../types/agent.js';
 
 export class AuditLogger {
   private db: Database.Database;

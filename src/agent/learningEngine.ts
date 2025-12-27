@@ -7,11 +7,11 @@
 
 import { EventEmitter } from 'events';
 import { randomUUID } from 'crypto';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/logger.js';
 import {
   UserInteractionFeedback,
   LearningMetrics
-} from '../types/proactive';
+} from '../types/proactive.js';
 
 export class LearningEngine extends EventEmitter {
   private interactions: UserInteractionFeedback[];

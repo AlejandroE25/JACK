@@ -5,8 +5,8 @@
  * of all plugins in the system.
  */
 
-import { EventBus } from '../events/eventBus';
-import { DataPipeline } from '../data/dataPipeline';
+import { EventBus } from '../events/eventBus.js';
+import { DataPipeline } from '../data/dataPipeline.js';
 import {
   Plugin,
   PluginConfig,
@@ -16,7 +16,7 @@ import {
   PluginHealth,
   PluginRegistration,
   PluginManagerStats
-} from './types';
+} from './types.js';
 
 export class PluginManager {
   private eventBus: EventBus;

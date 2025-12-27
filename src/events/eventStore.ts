@@ -6,14 +6,14 @@
  */
 
 import Database from 'better-sqlite3';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/logger.js';
 import {
   Event,
   EventType,
   EventPriority,
   EventQuery,
   EventStatistics
-} from './types';
+} from './types.js';
 import fs from 'fs';
 import path from 'path';
 

@@ -17,7 +17,7 @@ import {
   AggregateResult,
   AggregateFunction,
   DataStatistics
-} from './types';
+} from './types.js';
 
 export class DataStorage {
   private db: Database.Database;

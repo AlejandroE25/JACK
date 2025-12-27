@@ -6,8 +6,8 @@
  */
 
 import { EventEmitter } from 'events';
-import { logger } from '../utils/logger';
-import { ConversationPattern } from '../types/proactive';
+import { logger } from '../utils/logger.js';
+import { ConversationPattern } from '../types/proactive.js';
 
 export class PatternRecognition extends EventEmitter {
   private patterns: Map<string, ConversationPattern>;

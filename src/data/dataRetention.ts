@@ -5,9 +5,9 @@
  * Prevents database bloat and ensures compliance with data retention requirements.
  */
 
-import { DataStorage } from './dataStorage';
-import { EventStore } from '../events/eventStore';
-import { Logger } from '../utils/productionLogger';
+import { DataStorage } from './dataStorage.js';
+import { EventStore } from '../events/eventStore.js';
+import { Logger } from '../utils/productionLogger.js';
 
 /**
  * Data retention configuration

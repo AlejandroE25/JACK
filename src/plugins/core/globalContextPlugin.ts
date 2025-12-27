@@ -11,10 +11,10 @@ import {
   PluginCapability,
   ExecutionContext,
   ToolResult
-} from '../../types/plugin';
-import { GlobalContextStore } from '../../agent/globalContextStore';
-import { ContextScope } from '../../types/globalContext';
-import { logger } from '../../utils/logger';
+} from '../../types/plugin.js';
+import { GlobalContextStore } from '../../agent/globalContextStore.js';
+import { ContextScope } from '../../types/globalContext.js';
+import { logger } from '../../utils/logger.js';
 
 export class GlobalContextPlugin implements Plugin {
   readonly metadata: PluginMetadata = {

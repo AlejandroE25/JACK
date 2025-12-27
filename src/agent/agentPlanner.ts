@@ -7,14 +7,14 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { randomUUID } from 'crypto';
-import { logger } from '../utils/logger';
-import { PluginRegistry } from '../plugins/pluginRegistry';
+import { logger } from '../utils/logger.js';
+import { PluginRegistry } from '../plugins/pluginRegistry.js';
 import {
   ExecutionPlan,
   ExecutionStep,
   PlanningContext
-} from '../types/agent';
-import { PluginTool } from '../types/plugin';
+} from '../types/agent.js';
+import { PluginTool } from '../types/plugin.js';
 
 export class AgentPlanner {
   private anthropic: Anthropic;

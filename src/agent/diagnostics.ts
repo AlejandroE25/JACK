@@ -6,9 +6,9 @@
  * to diagnose its own capabilities and troubleshoot issues.
  */
 
-import { logger } from '../utils/logger';
-import { PluginRegistry } from '../plugins/pluginRegistry';
-import { config } from '../config';
+import { logger } from '../utils/logger.js';
+import { PluginRegistry } from '../plugins/pluginRegistry.js';
+import { config } from '../config/index.js';
 import Anthropic from '@anthropic-ai/sdk';
 
 export enum DiagnosticLevel {

@@ -5,8 +5,8 @@
  * and executes actions based on risk assessment and autonomy levels.
  */
 
-import { EventBus } from '../events/eventBus';
-import { Event, EventType, EventPriority, EventSubscriber } from '../events/types';
+import { EventBus } from '../events/eventBus.js';
+import { Event, EventType, EventPriority, EventSubscriber } from '../events/types.js';
 import {
   AutonomyLevel,
   RiskLevel,
@@ -16,7 +16,7 @@ import {
   Decision,
   DecisionRule,
   DecisionEngineStats
-} from './types';
+} from './types.js';
 import { randomUUID } from 'crypto';
 
 /**

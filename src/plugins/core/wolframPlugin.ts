@@ -2,9 +2,9 @@
  * Wolfram Plugin - Adapter for Wolfram Alpha computational knowledge
  */
 
-import { Plugin, PluginMetadata, PluginTool, PluginCapability, ExecutionContext, ToolResult } from '../../types/plugin';
-import { WolframService } from '../../services/wolframService';
-import { logger } from '../../utils/logger';
+import { Plugin, PluginMetadata, PluginTool, PluginCapability, ExecutionContext, ToolResult } from '../../types/plugin.js';
+import { WolframService } from '../../services/wolframService.js';
+import { logger } from '../../utils/logger.js';
 
 export class WolframPlugin implements Plugin {
   metadata: PluginMetadata = {
