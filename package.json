@@ -55,8 +55,10 @@
     "sax": "^1.4.1",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0",
-    "wrtc": "^0.4.7",
     "ws": "^8.18.3"
+  },
+  "optionalDependencies": {
+    "wrtc": "^0.4.7"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",

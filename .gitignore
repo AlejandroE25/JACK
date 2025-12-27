@@ -39,8 +39,8 @@ logs/
 *.log
 npm-debug.log*
 
-# Database
-data/
+# Database (runtime data only, not source code)
+/data/
 *.db
 *.sqlite
 *.sqlite3
