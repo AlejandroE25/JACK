@@ -23,6 +23,11 @@ import { randomUUID } from 'crypto';
 // import { PersonalityManager } from './services/personalityManager'; // TODO
 // import { InterruptionManager } from './services/interruptionManager'; // TODO
 import { TTSCache } from './utils/ttsCache';
+import { WebRTCPeerManager } from './webrtc/webrtcPeerManager';
+import { SignalingService } from './webrtc/signalingService';
+import { AudioTrackProcessor } from './webrtc/audioTrackProcessor';
+import { PACEWebSocketServer } from '../../server/websocket';
+import { logger } from '../../utils/logger';
 
 /**
  * Voice plugin configuration
@@ -51,6 +56,7 @@ export class VoiceInterfacePlugin extends BasePlugin {
   tools: import('../../types/plugin').PluginTool[] = [];
 
   private activeClients: Map<string, ClientVoiceSession>;
+  private logger = logger;
 
   // Internal services
   private ttsService?: TTSService;
@@ -58,6 +64,13 @@ export class VoiceInterfacePlugin extends BasePlugin {
   // private personalityManager?: PersonalityManager; // TODO: Implement personality switching
   // private interruptionManager?: InterruptionManager; // TODO: Implement interruption handling
   private ttsCache?: TTSCache;
+
+  // WebRTC components
+  private peerManager?: WebRTCPeerManager;
+  private signalingService?: SignalingService;
+  private audioProcessor?: AudioTrackProcessor;
+  // @ts-ignore - Stored for future use (signaling message routing)
+  private _wsServer?: PACEWebSocketServer;
 
   constructor() {
     const metadata: PluginMetadata & { tags?: string[] } = {
@@ -118,10 +131,36 @@ export class VoiceInterfacePlugin extends BasePlugin {
     // TODO: Initialize interruption manager
     // this.interruptionManager = new InterruptionManager();
 
+    // Initialize WebRTC components for TTS audio streaming
+    // Note: wsServer will be injected via setWebSocketServer() method
+    // which should be called from server initialization
+
     // Warmup TTS cache with common phrases (optional)
     if (settings.warmupCache !== false) {
       await this.warmupTTSCache();
     }
+  }
+
+  /**
+   * Set WebSocket server instance (called from server initialization)
+   */
+  setWebSocketServer(wsServer: PACEWebSocketServer): void {
+    this._wsServer = wsServer;
+
+    // Initialize WebRTC components now that we have wsServer
+    const iceServers = [
+      { urls: 'stun:stun.l.google.com:19302' }
+    ];
+
+    this.peerManager = new WebRTCPeerManager(iceServers, this.logger as any);
+    this.signalingService = new SignalingService(wsServer, this.peerManager, this.logger as any);
+    this.audioProcessor = new AudioTrackProcessor(this.eventBus!, this.peerManager, this.logger as any);
+
+    // Initialize services
+    this.signalingService.initialize();
+    this.audioProcessor.initialize();
+
+    this.logger.info('WebRTC TTS components initialized');
   }
 
   /**
@@ -201,7 +240,7 @@ export class VoiceInterfacePlugin extends BasePlugin {
 
       // Generate TTS audio (this will emit TTS_CHUNK events)
       if (this.ttsService) {
-        await this.ttsService.generate(response, responseId);
+        await this.ttsService.generate(response, responseId, clientId);
       }
 
     } catch (error) {
