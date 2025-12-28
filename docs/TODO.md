@@ -2,30 +2,78 @@
 
 ## High Priority
 
-### Agent Orchestrator Issue
+### Agent Orchestrator Routing Issue
 **Priority:** High
 **Status:** Investigation Needed
 
-There appears to be something wrong with the agent orchestrator. Needs investigation and debugging.
+The agent orchestrator is not properly utilizing plugins/modules for fast responses. It appears to be:
+1. Routing ALL queries through main conversational Claude
+2. Creating full tasks for EVERYTHING (even simple queries)
+3. NOT checking if plugins (weather, news, wolfram, memory) can provide faster answers
+4. Bypassing the intelligent routing that should determine if a module can handle the query
 
-**Symptoms to investigate:**
-- Unexpected behavior in agent mode
-- Potential issues with task execution
-- Message handling or routing problems
+**Expected behavior:**
+- Simple queries ("what's the weather?") should use the weather plugin directly
+- News requests should use the news plugin
+- Math/science queries should use Wolfram
+- Only complex queries requiring planning should create tasks
+- Fast path for plugin-answerable queries, slow path (task creation) for complex ones
+
+**Actual behavior:**
+- Everything creates a task
+- All responses come from main Claude conversation
+- Plugins are registered but not being used for query responses
+- No intelligent routing decision happening
+
+**Root cause hypothesis:**
+- Agent orchestrator's processMessage() may not be checking plugin capabilities
+- Missing routing logic to determine "can a plugin handle this?"
+- Task creation may be happening before plugin check
+- RoutingService or RoutingPredictor not being used in agent mode
 
 **Action items:**
-- [ ] Reproduce the issue
-- [ ] Check agent orchestrator logs
-- [ ] Review agentOrchestrator.ts for bugs
-- [ ] Test agent vs legacy mode comparison
-- [ ] Check task executor and planner integration
-- [ ] Verify plugin registry communication
+- [ ] Review how processMessage() routes queries in agent mode
+- [ ] Check if plugins are queried before creating tasks
+- [ ] Compare legacy mode routing vs agent mode routing
+- [ ] Verify RoutingService integration in agent orchestrator
+- [ ] Add logging to see routing decisions
+- [ ] Test simple queries (weather, news) and verify plugin usage
+- [ ] Implement fast-path routing for plugin-answerable queries
 
 **Related files:**
-- `src/agent/agentOrchestrator.ts`
-- `src/agent/agentPlanner.ts`
-- `src/agent/agentExecutor.ts`
-- `logs/service-stdout.log`
+- `src/agent/agentOrchestrator.ts` - Main routing logic
+- `src/services/routingService.ts` - Routing decisions
+- `src/services/routingPredictor.ts` - Pattern-based routing
+- `src/agent/agentPlanner.ts` - Task planning
+- `src/agent/agentExecutor.ts` - Task execution
+- `src/plugins/pluginRegistry.ts` - Plugin capabilities
+- `src/services/conversationOrchestrator.ts` - Legacy mode (working correctly)
+- `logs/service-stdout.log` - Runtime behavior
+
+**Implementation notes:**
+The fix should implement a two-tier routing system in agent mode:
+
+1. **Fast Path** (< 100ms):
+   - Check if query matches plugin capabilities
+   - Use RoutingService to determine subsystem (weather/news/wolfram/memory)
+   - Execute plugin tool directly
+   - Return result immediately
+   - Example: "what's the weather?" → weather plugin → instant response
+
+2. **Slow Path** (task creation):
+   - Only for complex queries that require planning
+   - Multi-step tasks
+   - Queries that need multiple tools
+   - Research-type questions
+   - Example: "analyze the weather trend and suggest activities" → create task
+
+The agent orchestrator should NOT create a task for every single query.
+It should behave more like the legacy conversationOrchestrator which
+correctly routes to subsystems first before falling back to Claude.
+
+Current problem: Agent mode is skipping the routing logic entirely and
+going straight to task creation + Claude for everything, making it slower
+and less efficient than legacy mode for simple queries.
 
 ---
 
