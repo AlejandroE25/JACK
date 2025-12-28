@@ -21,7 +21,7 @@ echo [1/5] Cleaning old build...
 
 REM Kill any running node processes
 taskkill /F /IM node.exe >nul 2>&1
-timeout /t 1 /nobreak >nul
+timeout /t 2 /nobreak >nul
 
 if exist "dist" (
     rmdir /s /q "dist" 2>nul
@@ -30,7 +30,24 @@ if exist "dist" (
 
 if exist "node_modules" (
     echo       Removing node_modules/ ^(this may take a moment^)...
+
+    REM Remove better-sqlite3 separately first (it has locked .node files)
+    if exist "node_modules\better-sqlite3" (
+        echo       Removing better-sqlite3 native binaries...
+        del /f /q "node_modules\better-sqlite3\build\Release\*.node" 2>nul
+        rmdir /s /q "node_modules\better-sqlite3" 2>nul
+    )
+
+    REM Now remove everything else
     rmdir /s /q "node_modules" 2>nul
+
+    REM If node_modules still exists, wait and retry
+    if exist "node_modules" (
+        echo       Waiting for file locks to release...
+        timeout /t 3 /nobreak >nul
+        rmdir /s /q "node_modules" 2>nul
+    )
+
     echo       Removed node_modules/ directory
 )
 
@@ -39,15 +56,21 @@ echo.
 
 REM Step 2: Install dependencies
 echo [2/5] Installing dependencies...
-echo       Running: npm install --omit=optional --legacy-peer-deps
-echo       ^(this may show warnings - these can be ignored^)
+echo       Running: npm ci --omit=optional
+echo       ^(npm ci does a clean install from package-lock.json^)
 
-npm install --omit=optional --legacy-peer-deps
+npm ci --omit=optional
 
 if errorlevel 1 (
-    echo       ERROR during npm install
-    echo       Check the output above for errors
-    exit /b 1
+    echo.
+    echo       WARNING: npm ci failed, trying npm install as fallback...
+    npm install --omit=optional --legacy-peer-deps --force
+
+    if errorlevel 1 (
+        echo       ERROR during npm install
+        echo       Check the output above for errors
+        exit /b 1
+    )
 )
 
 echo       * Dependencies installed
