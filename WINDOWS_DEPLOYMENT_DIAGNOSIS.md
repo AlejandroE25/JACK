@@ -81,28 +81,36 @@ npm install --omit=optional --legacy-peer-deps
 
 ### Windows 11 Pro Deployment
 
-1. **Clean the environment**:
-   ```powershell
-   Remove-Item -Recurse -Force node_modules, dist -ErrorAction SilentlyContinue
+**Option 1: Using Command Prompt (Recommended - No installs required)**
+
+1. **Run the rebuild script**:
+   ```cmd
+   scripts\rebuild-windows.cmd
    ```
 
-2. **Run the updated rebuild script**:
+2. **Start the server**:
+   ```cmd
+   npm start
+   ```
+
+**Option 2: Using PowerShell**
+
+1. **Run the rebuild script**:
    ```powershell
    .\scripts\rebuild-windows.ps1
    ```
 
-3. **Verify the build**:
-   ```powershell
-   # Check critical files exist
-   Test-Path dist\src\server\index.js
-   Test-Path dist\src\config\index.js
-   Test-Path dist\src\utils\terminalUI.js
-   ```
-
-4. **Start the server**:
+2. **Start the server**:
    ```powershell
    npm start
    ```
+
+Both scripts perform the same operations:
+- Kill node processes to release file locks
+- Clean dist/ and node_modules/
+- Install dependencies with `--omit=optional --legacy-peer-deps`
+- Build TypeScript project
+- Verify critical files exist
 
 You should now see the formatted terminal output with:
 - Colored startup banner
