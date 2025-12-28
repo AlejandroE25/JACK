@@ -1,14 +1,17 @@
 # Windows Clean Rebuild Script for proPACE
 # This script performs a complete clean rebuild to fix module loading issues
 
-Write-Host "`n=== proPACE Windows Clean Rebuild ===" -ForegroundColor Cyan
-Write-Host "This will clean and rebuild the entire project`n" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "=== proPACE Windows Clean Rebuild ===" -ForegroundColor Cyan
+Write-Host "This will clean and rebuild the entire project" -ForegroundColor Yellow
+Write-Host ""
 
 # Check if we're in the right directory
 if (-not (Test-Path "package.json")) {
     Write-Host "ERROR: package.json not found. Please run this script from the proPACE directory." -ForegroundColor Red
     Write-Host "Example: cd C:\proPACE" -ForegroundColor Yellow
-    Write-Host "         .\scripts\rebuild-windows.ps1`n" -ForegroundColor Yellow
+    Write-Host "         .\scripts\rebuild-windows.ps1" -ForegroundColor Yellow
+    Write-Host ""
     exit 1
 }
 
@@ -23,7 +26,8 @@ if (Test-Path "node_modules") {
     Remove-Item -Recurse -Force "node_modules" -ErrorAction SilentlyContinue
     Write-Host "      Removed node_modules/ directory" -ForegroundColor Gray
 }
-Write-Host "      ✓ Clean complete`n" -ForegroundColor Green
+Write-Host "      ✓ Clean complete" -ForegroundColor Green
+Write-Host ""
 
 # Step 2: Install dependencies
 Write-Host "[2/5] Installing dependencies..." -ForegroundColor Green
@@ -34,7 +38,8 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host $installOutput -ForegroundColor Red
     exit 1
 }
-Write-Host "      ✓ Dependencies installed`n" -ForegroundColor Green
+Write-Host "      ✓ Dependencies installed" -ForegroundColor Green
+Write-Host ""
 
 # Step 3: Verify critical dependencies
 Write-Host "[3/5] Verifying critical dependencies..." -ForegroundColor Green
@@ -60,11 +65,14 @@ foreach ($dep in $criticalDeps) {
 }
 
 if ($missingDeps.Count -gt 0) {
-    Write-Host "`n      ERROR: Missing dependencies detected!" -ForegroundColor Red
-    Write-Host "      Please install manually: npm install $($missingDeps -join ' ')`n" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "      ERROR: Missing dependencies detected!" -ForegroundColor Red
+    Write-Host "      Please install manually: npm install $($missingDeps -join ' ')" -ForegroundColor Yellow
+    Write-Host ""
     exit 1
 }
-Write-Host "      ✓ All critical dependencies present`n" -ForegroundColor Green
+Write-Host "      ✓ All critical dependencies present" -ForegroundColor Green
+Write-Host ""
 
 # Step 4: Build the project
 Write-Host "[4/5] Building TypeScript project..." -ForegroundColor Green
@@ -75,7 +83,8 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host $buildOutput -ForegroundColor Red
     exit 1
 }
-Write-Host "      ✓ Build complete`n" -ForegroundColor Green
+Write-Host "      ✓ Build complete" -ForegroundColor Green
+Write-Host ""
 
 # Step 5: Verify build output
 Write-Host "[5/5] Verifying build output..." -ForegroundColor Green
@@ -98,16 +107,20 @@ foreach ($file in $criticalFiles) {
 }
 
 if ($missingFiles.Count -gt 0) {
-    Write-Host "`n      ERROR: Build incomplete! Missing files:" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "      ERROR: Build incomplete! Missing files:" -ForegroundColor Red
     foreach ($file in $missingFiles) {
         Write-Host "      - $file" -ForegroundColor Yellow
     }
-    Write-Host "`n      This indicates a TypeScript compilation issue." -ForegroundColor Yellow
-    Write-Host "      Check the build output above for errors.`n" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "      This indicates a TypeScript compilation issue." -ForegroundColor Yellow
+    Write-Host "      Check the build output above for errors." -ForegroundColor Yellow
+    Write-Host ""
     exit 1
 }
 
-Write-Host "      ✓ All critical files present`n" -ForegroundColor Green
+Write-Host "      ✓ All critical files present" -ForegroundColor Green
+Write-Host ""
 
 # Success!
 Write-Host "=== Rebuild Complete! ===" -ForegroundColor Cyan
