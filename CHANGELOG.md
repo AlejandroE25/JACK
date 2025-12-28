@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- SSH key authentication setup documentation for Mac to Windows connections (docs/SSH-SETUP.md)
+
 ### Fixed
 - Fixed Windows compatibility issue where server would exit immediately on startup
   - Issue: `import.meta.url` comparison with `process.argv[1]` was failing on Windows due to path format differences (forward slashes vs backslashes)
