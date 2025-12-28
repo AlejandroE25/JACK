@@ -12,8 +12,8 @@
 
 # ===== CONFIGURATION =====
 # TODO: Edit these values for your Windows server
-SERVER_USER="Administrator"                 # Your Windows username
-SERVER_HOST="192.168.1.100"                 # Your server IP or domain name
+SERVER_USER="ajesc"                 # Your Windows username
+SERVER_HOST="10.0.0.69"                 # Your server IP or domain name
 SERVER_PATH="C:/proPACE"                    # Installation path on Windows
 NSSM_PATH="C:/nssm/win64/nssm.exe"         # Path to NSSM executable
 SERVICE_NAME="proPACE"                      # Windows service name
