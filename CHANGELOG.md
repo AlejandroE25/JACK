@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - SSH key authentication setup documentation for Mac to Windows connections (docs/SSH-SETUP.md)
+- Terminal-based status dashboard with real-time monitoring
+  - Beautiful TUI interface using blessed and blessed-contrib
+  - Real-time server status, plugin list, health metrics, and activity logs
+  - WebSocket integration for live updates
+  - Keyboard navigation and auto-refresh
+  - File: `src/cli/status-dashboard.ts`
+  - Run with: `npm run dashboard` (dev) or `npm run status` (production)
+  - Documentation: `docs/STATUS-DASHBOARD.md`
 
 ### Fixed
 - Fixed Windows compatibility issue where server would exit immediately on startup

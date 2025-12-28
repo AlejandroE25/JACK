@@ -98,6 +98,9 @@ npm run dev
 # Run CLI client in development mode
 npm run dev:cli
 
+# Run status dashboard (monitor server in real-time)
+npm run dashboard
+
 # Run tests
 npm test
 
@@ -116,6 +119,9 @@ npm run build
 
 # Run server
 npm start
+
+# Run status dashboard (monitor server in real-time)
+npm run status
 
 # Build standalone CLI binaries
 npm run build:cli:all
