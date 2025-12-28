@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - File: `src/server/index.ts`
   - Impact: Server now starts correctly on Windows when using `npm start`
 
+- Fixed NSSM path in deployment script and improved service restart reliability
+  - Updated NSSM path from `C:/nssm/win64/nssm.exe` to correct Chocolatey installation path `C:/ProgramData/chocolatey/bin/nssm.exe`
+  - Changed service restart to use stop/start sequence instead of restart command to avoid port binding issues
+  - Added `.Trim()` to status check to handle whitespace in NSSM output
+  - File: `scripts/deploy-windows.sh`
+  - Impact: Deployment script now works correctly with Chocolatey-installed NSSM and handles service restarts more reliably
+
 ## [2.0.0] - Previous Release
 
 ### Added

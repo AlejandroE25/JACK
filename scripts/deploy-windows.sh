@@ -4,7 +4,7 @@
 SERVER_USER="ajesc"
 SERVER_HOST="10.0.0.69"
 SERVER_PATH="C:/proPACE"
-NSSM_PATH="C:/nssm/win64/nssm.exe"
+NSSM_PATH="C:/ProgramData/chocolatey/bin/nssm.exe"
 SERVICE_NAME="proPACE"
 PORT=3000
 
@@ -34,15 +34,19 @@ ssh "${SERVER_USER}@${SERVER_HOST}" "powershell -Command \"
     exit 1
   }
 
-  # Restart service
-  Write-Host '🔄 Restarting service...'
-  & '${NSSM_PATH}' restart '${SERVICE_NAME}'
+  # Restart service (stop first to avoid port binding issues)
+  Write-Host '🔄 Stopping service...'
+  & '${NSSM_PATH}' stop '${SERVICE_NAME}'
+  Start-Sleep -Seconds 3
+
+  Write-Host '🚀 Starting service...'
+  & '${NSSM_PATH}' start '${SERVICE_NAME}'
   Start-Sleep -Seconds 5
 
   # Verify service is running
-  \$status = & '${NSSM_PATH}' status '${SERVICE_NAME}'
+  \$status = (& '${NSSM_PATH}' status '${SERVICE_NAME}').Trim()
   if (\$status -ne 'SERVICE_RUNNING') {
-    Write-Error 'Service failed to start!'
+    Write-Error \"Service failed to start! Status: \$status\"
     exit 1
   }
 
