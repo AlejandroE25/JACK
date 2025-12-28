@@ -31,8 +31,8 @@ Write-Host ""
 
 # Step 2: Install dependencies
 Write-Host "[2/5] Installing dependencies..." -ForegroundColor Green
-Write-Host "      Running: npm install --no-optional" -ForegroundColor Gray
-$installOutput = npm install --no-optional 2>&1
+Write-Host "      Running: npm install --omit=optional --legacy-peer-deps" -ForegroundColor Gray
+$installOutput = npm install --omit=optional --legacy-peer-deps 2>&1
 if ($LASTEXITCODE -ne 0) {
     Write-Host "      ERROR during npm install:" -ForegroundColor Red
     Write-Host $installOutput -ForegroundColor Red
