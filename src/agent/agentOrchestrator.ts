@@ -872,14 +872,18 @@ export class AgentOrchestrator {
           if (wolframTool) {
             const result = await wolframTool.execute({ query: message }, context);
             if (result.success && result.data) {
-              const resultStr = typeof result.data === 'string' ? result.data : JSON.stringify(result.data);
+              // Extract answer from data object
+              const answer = typeof result.data === 'object' && result.data.answer
+                ? result.data.answer
+                : (typeof result.data === 'string' ? result.data : JSON.stringify(result.data));
 
               // Check if Wolfram actually found an answer
               if (
-                !resultStr.includes("couldn't find") &&
-                !resultStr.includes('encountered an error')
+                !answer.includes("couldn't find") &&
+                !answer.includes('encountered an error')
               ) {
-                return resultStr;
+                // Format response conversationally
+                return `It's ${answer}`;
               }
             }
           }
