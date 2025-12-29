@@ -34,6 +34,7 @@ proPACE is a Jarvis-like AI assistant that goes beyond simple Q&A to provide tru
 
 ### 🎯 Intelligent Routing & Orchestration
 - ✅ Dual-model AI routing (Haiku for speed, Sonnet for intelligence)
+- ✅ **Fast-path routing**: Simple queries execute plugins directly (<200ms)
 - ✅ Multi-layer caching with >60% hit rate (exact match + similarity-based)
 - ✅ Confidence-based routing with pattern validation
 - ✅ Session learning and subsystem prediction
@@ -63,7 +64,7 @@ proPACE is a Jarvis-like AI assistant that goes beyond simple Q&A to provide tru
 - ✅ Dynamic plugin registry with hot loading
 - ✅ Weather plugin with IP-based geolocation
 - ✅ News plugin with RSS aggregation
-- ✅ Wolfram Alpha integration for computational queries
+- ✅ Wolfram Alpha integration with conversational responses
 - ✅ Plugin capability system (read-only, state-changing, etc.)
 
 ### 📡 Communication
@@ -77,6 +78,13 @@ proPACE is a Jarvis-like AI assistant that goes beyond simple Q&A to provide tru
 - ✅ Test-Driven Development (TDD) approach
 - ✅ >80% code coverage for core systems
 - ✅ Mock-based testing for external APIs
+
+### 🔄 Deployment & Operations
+- ✅ Auto-update system with git-based monitoring
+- ✅ Manual update trigger via REST API
+- ✅ Verbose deployment scripts with step-by-step progress
+- ✅ Windows service management with NSSM
+- ✅ Automated rebuild and restart workflows
 
 ## Quick Start
 
@@ -166,6 +174,15 @@ proPACE/
 ├── cli/                     # Standalone CLI client
 ├── data/                    # SQLite databases (memory, context)
 ├── logs/                    # Application logs
+├── docs/                    # Documentation
+│   ├── CHANGELOG.md         # Version history
+│   ├── TODO.md             # Active task tracking
+│   ├── WINDOWS_DEPLOYMENT.md
+│   └── archive/            # Historical planning documents
+├── scripts/                # Deployment and build scripts
+│   ├── deploy-windows.sh   # Windows deployment with verbose output
+│   ├── rebuild-windows.cmd # Clean rebuild for Windows
+│   └── install-service-windows.cmd
 └── GUIs/                    # Web interfaces (Desktop, Mobile, Big Display)
 ```
 
@@ -229,6 +246,7 @@ proPACE/
 
 Dual-model architecture optimized for speed and intelligence:
 
+- **Fast-Path Routing** (NEW): Simple queries (weather, news, math) execute plugins directly without task creation (<200ms total)
 - **Pre-Routing Validator**: Claude Haiku 4.5 analyzes queries in <200ms
 - **Confidence-Based Routing**: High-confidence (>80%) routes directly to subsystems
 - **Pattern Fallback**: Medium/low confidence validates with pattern matching
@@ -243,7 +261,7 @@ Dual-model architecture optimized for speed and intelligence:
 #### Tier 1: Standard Plugins
 - **Weather**: Real-time weather by IP geolocation (15-min cache)
 - **News**: Latest headlines from Wikinews RSS (1-hour cache)
-- **Wolfram Alpha**: Computational knowledge engine
+- **Wolfram Alpha**: Computational knowledge with conversational responses (e.g., "It's 792" instead of raw JSON)
 - Minimal system integration, expose tools only
 
 #### Tier 2: System Plugins (Planned)
@@ -368,9 +386,37 @@ What sets proPACE apart from other AI assistants:
 
 ## Deployment
 
+### Windows Deployment
+
+proPACE includes automated deployment scripts for Windows servers:
+
+```bash
+# Deploy to Windows server (from macOS/Linux)
+./scripts/deploy-windows.sh
+```
+
+The deployment script provides verbose step-by-step output:
+1. Checks current service status
+2. Pulls latest changes from git
+3. Runs clean rebuild (npm install + build)
+4. Stops the Windows service
+5. Starts the Windows service
+6. Verifies service is running
+
+### Auto-Update System
+
+The server includes a built-in auto-update system that:
+- Monitors git repository for changes every 5 minutes
+- Automatically pulls, rebuilds, and restarts when updates detected
+- Can be manually triggered via REST API:
+
+```bash
+curl -X POST http://your-server:3000/api/update/trigger
+```
+
 ### Oracle Cloud Free Tier
 
-See deployment guide in docs/ for detailed instructions on deploying to Oracle Cloud Free Tier ($0/month).
+See deployment guide in [docs/](docs/) for detailed instructions on deploying to Oracle Cloud Free Tier ($0/month).
 
 ## Cost Estimate
 
