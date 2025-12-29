@@ -49,6 +49,19 @@ export function loadConfig(): PACEConfig {
     voiceTTSCacheTTL: parseInt(process.env.VOICE_TTS_CACHE_TTL || '3600000', 10),
     voiceSTTChunkDuration: parseInt(process.env.VOICE_STT_CHUNK_DURATION || '2000', 10),
     voiceICEServers: process.env.VOICE_ICE_SERVERS || '[{"urls":"stun:stun.l.google.com:19302"}]',
+
+    // Auto-Update System Configuration
+    updateMonitor: process.env.ENABLE_AUTO_UPDATE === 'true' ? {
+      enabled: true,
+      checkInterval: parseInt(process.env.AUTO_UPDATE_CHECK_INTERVAL || '300000', 10), // 5 minutes
+      remoteName: process.env.AUTO_UPDATE_REMOTE || 'origin',
+      remoteBranch: process.env.AUTO_UPDATE_BRANCH || 'main',
+      allowLocalChanges: process.env.AUTO_UPDATE_ALLOW_LOCAL_CHANGES === 'true',
+      backupBeforeUpdate: process.env.AUTO_UPDATE_BACKUP !== 'false', // Default true
+      maxBackups: parseInt(process.env.AUTO_UPDATE_MAX_BACKUPS || '5', 10),
+      buildTimeout: parseInt(process.env.AUTO_UPDATE_BUILD_TIMEOUT || '180000', 10), // 3 minutes
+      restartDelay: parseInt(process.env.AUTO_UPDATE_RESTART_DELAY || '5000', 10), // 5 seconds
+    } : undefined,
   };
 
   // Validate required API keys

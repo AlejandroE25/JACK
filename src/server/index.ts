@@ -140,7 +140,8 @@ class PACEServer {
       config.anthropicApiKey,
       this.pluginRegistry,
       './data/audit.db',
-      config.agentPlanningModel
+      config.agentPlanningModel,
+      config.updateMonitor
     );
 
     // Give recovery plugin access to recovery system
@@ -154,8 +155,14 @@ class PACEServer {
       this.agentOrchestrator.getGlobalContext()
     );
 
+    // Give diagnostic plugin access to orchestrator (for update monitor)
+    diagnosticPlugin.setOrchestrator(this.agentOrchestrator);
+
     // Wire up event handlers for background task completion
     this.setupAgentEventHandlers();
+
+    // Set agent orchestrator for API endpoints (update trigger/status)
+    this.wsServer.setAgentOrchestrator(this.agentOrchestrator);
 
     logger.info('Agent mode initialized successfully');
     ui.displayInitStep('Agent mode initialized', 'success');

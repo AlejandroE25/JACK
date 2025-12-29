@@ -5,6 +5,7 @@ import { join, extname } from 'path';
 import { randomUUID } from 'crypto';
 import { PACEClient } from '../types/index.js';
 import { logger } from '../utils/logger.js';
+import { AgentOrchestrator } from '../agent/agentOrchestrator.js';
 
 export interface WebSocketServerOptions {
   port: number;
@@ -25,9 +26,17 @@ export class PACEWebSocketServer {
   private onClientConnectedHandler?: (clientId: string) => void;
   private onClientDisconnectedHandler?: (clientId: string) => void;
   private onWebRTCSignalingHandler?: (clientId: string, message: any) => Promise<void>;
+  private agentOrchestrator?: AgentOrchestrator;
 
   constructor(options: WebSocketServerOptions) {
     this.options = options;
+  }
+
+  /**
+   * Set the agent orchestrator (for update monitor access)
+   */
+  setAgentOrchestrator(orchestrator: AgentOrchestrator): void {
+    this.agentOrchestrator = orchestrator;
   }
 
   /**
@@ -154,9 +163,110 @@ export class PACEWebSocketServer {
       return;
     }
 
+    // POST /api/update/trigger endpoint
+    if (req.url === '/api/update/trigger' && req.method === 'POST') {
+      this.handleUpdateTrigger(req, res);
+      return;
+    }
+
+    // GET /api/update/status endpoint
+    if (req.url === '/api/update/status' && req.method === 'GET') {
+      this.handleUpdateStatus(req, res);
+      return;
+    }
+
     // Unknown API endpoint
     res.writeHead(404);
     res.end(JSON.stringify({ error: 'API endpoint not found' }));
+  }
+
+  /**
+   * Handle update trigger endpoint
+   */
+  private async handleUpdateTrigger(_req: any, res: any): Promise<void> {
+    try {
+      if (!this.agentOrchestrator) {
+        res.writeHead(503);
+        res.end(JSON.stringify({
+          error: 'Agent orchestrator not available',
+          message: 'Server is not running in agent mode'
+        }));
+        return;
+      }
+
+      const updateMonitor = this.agentOrchestrator.getUpdateMonitor();
+
+      if (!updateMonitor) {
+        res.writeHead(503);
+        res.end(JSON.stringify({
+          error: 'Auto-update is not enabled',
+          message: 'Set ENABLE_AUTO_UPDATE=true in .env to enable auto-update'
+        }));
+        return;
+      }
+
+      // Trigger update check (don't await - let it run in background)
+      updateMonitor.checkNow().catch(error => {
+        logger.error('Update check failed:', error);
+      });
+
+      res.writeHead(200);
+      res.end(JSON.stringify({
+        success: true,
+        message: 'Update check triggered successfully',
+        timestamp: new Date().toISOString()
+      }));
+    } catch (error: any) {
+      logger.error('Error triggering update:', error);
+      res.writeHead(500);
+      res.end(JSON.stringify({
+        error: 'Failed to trigger update',
+        message: error.message
+      }));
+    }
+  }
+
+  /**
+   * Handle update status endpoint
+   */
+  private handleUpdateStatus(_req: any, res: any): void {
+    try {
+      if (!this.agentOrchestrator) {
+        res.writeHead(200);
+        res.end(JSON.stringify({
+          enabled: false,
+          message: 'Agent orchestrator not available - server not running in agent mode'
+        }));
+        return;
+      }
+
+      const updateMonitor = this.agentOrchestrator.getUpdateMonitor();
+
+      if (!updateMonitor) {
+        res.writeHead(200);
+        res.end(JSON.stringify({
+          enabled: false,
+          message: 'Auto-update is not enabled. Set ENABLE_AUTO_UPDATE=true in .env to enable it.'
+        }));
+        return;
+      }
+
+      const status = updateMonitor.getStatus();
+
+      res.writeHead(200);
+      res.end(JSON.stringify({
+        enabled: true,
+        status,
+        timestamp: new Date().toISOString()
+      }));
+    } catch (error: any) {
+      logger.error('Error getting update status:', error);
+      res.writeHead(500);
+      res.end(JSON.stringify({
+        error: 'Failed to get update status',
+        message: error.message
+      }));
+    }
   }
 
   /**

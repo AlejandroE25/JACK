@@ -17,6 +17,8 @@ interface ServerStatus {
   version: string;
   port: number;
   clients: number;
+  nextUpdateCheck?: Date;
+  autoUpdateEnabled: boolean;
 }
 
 interface PluginInfo {
@@ -50,12 +52,17 @@ class StatusDashboard {
     mode: 'UNKNOWN',
     version: '2.0.0',
     port: config.port,
-    clients: 0
+    clients: 0,
+    autoUpdateEnabled: false,
+    nextUpdateCheck: undefined
   };
 
   private plugins: PluginInfo[] = [];
   private healthMetrics: HealthMetric[] = [];
   private logs: string[] = [];
+  private logFilePosition: number = 0;
+  private logFilePath: string = 'C:\\proPACE\\logs\\service-stdout.log';
+  private logFileInitialized: boolean = false;
 
   constructor() {
     // Create screen
@@ -98,7 +105,7 @@ class StatusDashboard {
     });
 
     // Health Monitor Table (middle)
-    this.healthTable = this.grid.set(4, 0, 4, 12, contrib.table, {
+    this.healthTable = this.grid.set(4, 0, 2, 12, contrib.table, {
       label: ' Health Monitoring ',
       keys: true,
       vi: true,
@@ -110,9 +117,9 @@ class StatusDashboard {
       }
     });
 
-    // Activity Log (bottom)
-    this.logBox = this.grid.set(8, 0, 3, 12, blessed.log, {
-      label: ' Activity Log ',
+    // Program Output Log (bottom) - Expanded for better visibility
+    this.logBox = this.grid.set(6, 0, 5, 12, blessed.log, {
+      label: ' Program Output (Use mouse or arrow keys to scroll) ',
       border: { type: 'line' },
       style: {
         border: { fg: 'magenta' },
@@ -122,15 +129,24 @@ class StatusDashboard {
       scrollable: true,
       alwaysScroll: true,
       scrollbar: {
-        ch: ' ',
-        style: { bg: 'blue' }
+        ch: '█',
+        track: {
+          bg: 'black'
+        },
+        style: {
+          bg: 'blue',
+          fg: 'blue'
+        }
       },
-      mouse: true
+      mouse: true,
+      keys: true,
+      vi: true,
+      input: true
     });
 
     // Status Bar (very bottom)
     this.statusBar = this.grid.set(11, 0, 1, 12, blessed.text, {
-      content: ' Press Ctrl+C or q to exit | r to refresh | Auto-refresh: ON (every 2 min)',
+      content: ' Ctrl+C/q: Quit | r: Refresh | l: Focus Logs | p: Focus Plugins | ↑/↓: Scroll',
       style: {
         fg: 'black',
         bg: 'white'
@@ -150,8 +166,19 @@ class StatusDashboard {
       this.updateStatusBar();
     });
 
-    // Focus handling
-    this.pluginList.focus();
+    // Key bindings for focusing different sections
+    this.screen.key(['l'], () => {
+      this.logBox.focus();
+      this.screen.render();
+    });
+
+    this.screen.key(['p'], () => {
+      this.pluginList.focus();
+      this.screen.render();
+    });
+
+    // Focus handling - start with log box focused for easier scrolling
+    this.logBox.focus();
 
     // Render initial screen
     this.screen.render();
@@ -167,8 +194,16 @@ class StatusDashboard {
     // Initial fetch
     await this.fetchStatus();
 
+    // Start tailing the log file immediately (non-blocking)
+    this.tailLogFile().catch(() => {/* ignore errors */});
+
     // Connect WebSocket for real-time updates
     this.connectWebSocket();
+
+    // Tail log file every 500ms for near real-time updates
+    setInterval(() => {
+      this.tailLogFile().catch(() => {/* ignore errors */});
+    }, 500);
 
     // Update display every 2 seconds
     setInterval(() => {
@@ -177,7 +212,6 @@ class StatusDashboard {
 
     // Auto-refresh data every 2 minutes
     setInterval(() => {
-      this.addLog('{blue-fg}Auto-refreshing status...{/blue-fg}');
       this.lastRefresh = new Date();
       this.fetchStatus();
       this.updateStatusBar();
@@ -192,19 +226,12 @@ class StatusDashboard {
   private updateStatusBar() {
     const now = new Date();
     const timeSinceRefresh = Math.floor((now.getTime() - this.lastRefresh.getTime()) / 1000);
-    const minutesAgo = Math.floor(timeSinceRefresh / 60);
-    const secondsAgo = timeSinceRefresh % 60;
-
-    const timeText = minutesAgo > 0
-      ? `${minutesAgo}m ${secondsAgo}s ago`
-      : `${secondsAgo}s ago`;
-
     const nextRefresh = 120 - timeSinceRefresh;
     const nextMin = Math.floor(nextRefresh / 60);
     const nextSec = nextRefresh % 60;
 
     this.statusBar.setContent(
-      ` Ctrl+C: Quit | r: Refresh | Last refresh: ${timeText} | Next: ${nextMin}m ${nextSec}s`
+      ` Ctrl+C/q: Quit | r: Refresh | l: Logs | p: Plugins | ↑/↓: Scroll | Next refresh: ${nextMin}m ${nextSec}s`
     );
     this.screen.render();
   }
@@ -221,7 +248,6 @@ class StatusDashboard {
 
       this.ws.on('message', (data: WebSocket.Data) => {
         const message = data.toString();
-        this.addLog(`{blue-fg}[WS]{/blue-fg} ${message.substring(0, 80)}${message.length > 80 ? '...' : ''}`);
 
         // Parse server messages for client count updates
         if (message.includes('client')) {
@@ -267,6 +293,7 @@ class StatusDashboard {
       // Try to read service logs for plugin info
       await this.fetchPluginInfo();
       await this.fetchHealthInfo();
+      await this.fetchUpdateInfo();
 
       this.updateDisplay();
     } catch (error) {
@@ -366,9 +393,62 @@ class StatusDashboard {
     }
   }
 
+  private async fetchUpdateInfo() {
+    try {
+      const fs = await import('fs/promises');
+      const logPath = 'C:\\proPACE\\logs\\service-stdout.log';
+
+      try {
+        const logContent = await fs.readFile(logPath, 'utf-8');
+        const lines = logContent.split('\n').slice(-100); // Last 100 lines
+
+        // Check if auto-update is enabled
+        const autoUpdateEnabledLine = lines.find(line =>
+          line.includes('Auto-update enabled') ||
+          line.includes('UpdateMonitor initialized') ||
+          line.includes('UpdateMonitor started')
+        );
+
+        this.serverStatus.autoUpdateEnabled = !!autoUpdateEnabledLine;
+
+        // Look for next update check time or check interval
+        const checkIntervalMatch = logContent.match(/Auto-update check interval: (\d+)ms/);
+        if (checkIntervalMatch && this.serverStatus.autoUpdateEnabled) {
+          const intervalMs = parseInt(checkIntervalMatch[1], 10);
+
+          // Find last update check
+          const lastCheckLine = lines.reverse().find(line =>
+            line.includes('Update check started') ||
+            line.includes('Checking for updates')
+          );
+
+          if (lastCheckLine) {
+            // Extract timestamp from log line (assuming format includes timestamp)
+            // For now, use current time + interval as estimate
+            const now = new Date();
+            this.serverStatus.nextUpdateCheck = new Date(now.getTime() + intervalMs);
+          } else {
+            // No check found, estimate based on interval
+            const now = new Date();
+            this.serverStatus.nextUpdateCheck = new Date(now.getTime() + intervalMs);
+          }
+        }
+
+      } catch (error) {
+        // Log file might not exist yet
+        this.serverStatus.autoUpdateEnabled = false;
+        this.serverStatus.nextUpdateCheck = undefined;
+      }
+    } catch (error) {
+      this.addLog(`Error reading update info: ${error}`);
+    }
+  }
+
   private updateDisplay() {
     // Update server status box
     const statusColor = this.getStatusColor(this.serverStatus.status);
+
+    const nextUpdateText = this.formatNextUpdate();
 
     this.serverBox.setContent(
       `\n` +
@@ -377,7 +457,8 @@ class StatusDashboard {
       `  {bold}Version:{/bold}       ${this.serverStatus.version}\n` +
       `  {bold}Port:{/bold}          ${this.serverStatus.port}\n` +
       `  {bold}Clients:{/bold}       ${this.serverStatus.clients}\n` +
-      `  {bold}Uptime:{/bold}        ${this.formatUptime(this.serverStatus.uptime)}\n`
+      `  {bold}Uptime:{/bold}        ${this.formatUptime(this.serverStatus.uptime)}\n` +
+      `  {bold}Next Update:{/bold}   ${nextUpdateText}\n`
     );
 
     // Update plugin list
@@ -443,6 +524,32 @@ class StatusDashboard {
     return `${hours}h ${minutes}m ${secs}s`;
   }
 
+  private formatNextUpdate(): string {
+    if (!this.serverStatus.autoUpdateEnabled) {
+      return '{gray-fg}Disabled{/gray-fg}';
+    }
+
+    if (!this.serverStatus.nextUpdateCheck) {
+      return '{yellow-fg}Unknown{/yellow-fg}';
+    }
+
+    const now = new Date();
+    const diff = this.serverStatus.nextUpdateCheck.getTime() - now.getTime();
+
+    if (diff < 0) {
+      return '{yellow-fg}Checking...{/yellow-fg}';
+    }
+
+    const minutes = Math.floor(diff / 60000);
+    const seconds = Math.floor((diff % 60000) / 1000);
+
+    if (minutes > 0) {
+      return `{green-fg}${minutes}m ${seconds}s{/green-fg}`;
+    } else {
+      return `{green-fg}${seconds}s{/green-fg}`;
+    }
+  }
+
   private addLog(message: string) {
     const timestamp = new Date().toLocaleTimeString();
     const logMessage = `{gray-fg}[${timestamp}]{/gray-fg} ${message}`;
@@ -454,6 +561,80 @@ class StatusDashboard {
     }
 
     this.logBox.log(logMessage);
+  }
+
+  private async tailLogFile() {
+    try {
+      const fs = await import('fs/promises');
+
+      // Check if log file exists
+      try {
+        const stats = await fs.stat(this.logFilePath);
+
+        // If file is smaller than our position, it was probably rotated or cleared
+        if (stats.size < this.logFilePosition) {
+          this.logFilePosition = 0;
+          this.logBox.setContent(''); // Clear the log display
+          this.logFileInitialized = false;
+        }
+
+        // On first run, only read last 50 lines instead of entire file
+        if (!this.logFileInitialized) {
+          const content = await fs.readFile(this.logFilePath, 'utf-8');
+          const allLines = content.split('\n');
+          const recentLines = allLines.slice(-50); // Last 50 lines
+
+          recentLines.forEach(line => {
+            if (line.trim().length > 0) {
+              const cleanLine = line.replace(/\x1b\[[0-9;]*m/g, '');
+              this.logBox.log(cleanLine);
+            }
+          });
+
+          this.logFilePosition = stats.size;
+          this.logFileInitialized = true;
+          this.screen.render();
+          return;
+        }
+
+        // Read only new content from current position
+        const bytesToRead = stats.size - this.logFilePosition;
+
+        if (bytesToRead > 0) {
+          // Limit read size to prevent freezing on huge bursts
+          const maxRead = Math.min(bytesToRead, 1024 * 100); // Max 100KB per read
+          const fileHandle = await fs.open(this.logFilePath, 'r');
+          const buffer = Buffer.alloc(maxRead);
+
+          await fileHandle.read(buffer, 0, maxRead, this.logFilePosition);
+          await fileHandle.close();
+
+          const newContent = buffer.toString('utf-8');
+          const lines = newContent.split('\n').filter(line => line.trim().length > 0);
+
+          // Add each new line to the log
+          lines.forEach(line => {
+            // Remove ANSI color codes for cleaner display
+            const cleanLine = line.replace(/\x1b\[[0-9;]*m/g, '');
+            this.logBox.log(cleanLine);
+          });
+
+          this.logFilePosition += maxRead;
+          this.screen.render();
+        }
+
+      } catch (error: any) {
+        // File doesn't exist yet
+        if (error.code === 'ENOENT' && !this.logFileInitialized) {
+          this.logBox.log('{yellow-fg}Waiting for service output...{/yellow-fg}');
+          this.logFileInitialized = true;
+          this.screen.render();
+        }
+      }
+
+    } catch (error) {
+      // Silently ignore errors to avoid spamming
+    }
   }
 
   private cleanup() {

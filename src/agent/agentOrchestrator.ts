@@ -16,6 +16,7 @@ import { ConcurrentRequestManager } from './concurrentRequestManager.js';
 import { SystemIntrospector } from './systemIntrospector.js';
 import { ErrorRecoveryManager } from './errorRecoveryManager.js';
 import { HealthMonitor } from './healthMonitor.js';
+import { UpdateMonitor } from './updateMonitor.js';
 import { SystemDiagnostics, DiagnosticLevel, DiagnosticStatus } from './diagnostics.js';
 import { GlobalContextStore } from './globalContextStore.js';
 import { ContextAnalyzer } from './contextAnalyzer.js';
@@ -24,6 +25,7 @@ import { PatternRecognition } from './patternRecognition.js';
 import { SuggestionEngine } from './suggestionEngine.js';
 import { RoutingService } from '../services/routingService.js';
 import { SubsystemType } from '../types/index.js';
+import { UpdateMonitorConfig } from '../types/update.js';
 import {
   PlanningContext,
   AuditEventType,
@@ -41,6 +43,7 @@ export class AgentOrchestrator {
   private introspector: SystemIntrospector;
   private recoveryManager: ErrorRecoveryManager;
   private healthMonitor: HealthMonitor;
+  private updateMonitor?: UpdateMonitor;
   private diagnostics: SystemDiagnostics;
   private globalContext: GlobalContextStore;
   private contextAnalyzer: ContextAnalyzer;
@@ -62,7 +65,8 @@ export class AgentOrchestrator {
     anthropicApiKey: string,
     pluginRegistry: PluginRegistry,
     auditDbPath: string = './data/audit.db',
-    planningModel: string = 'claude-sonnet-4-20250514'
+    planningModel: string = 'claude-sonnet-4-20250514',
+    updateMonitorConfig?: UpdateMonitorConfig
   ) {
     this.pluginRegistry = pluginRegistry;
     this.conversationHistory = new Map();
@@ -86,6 +90,13 @@ export class AgentOrchestrator {
         enableDegradedMode: true
       }
     );
+
+    // Initialize auto-update monitor (if enabled)
+    if (updateMonitorConfig?.enabled) {
+      this.updateMonitor = new UpdateMonitor(this.recoveryManager, updateMonitorConfig);
+      this.setupUpdateEventHandlers();
+      logger.info('Auto-update monitor initialized');
+    }
 
     // Initialize global context
     this.globalContext = new GlobalContextStore();
@@ -129,6 +140,11 @@ export class AgentOrchestrator {
 
     // Start health monitoring
     this.healthMonitor.start();
+
+    // Start update monitoring (if enabled)
+    if (this.updateMonitor) {
+      this.updateMonitor.start();
+    }
 
     logger.info('Agent orchestrator initialized with health monitoring');
   }
@@ -245,6 +261,70 @@ export class AgentOrchestrator {
       if (task.state === TaskState.ACTIVE && task.execution) {
         this.executor.processContextUpdate(task.execution, update, this.planner);
       }
+    });
+  }
+
+  /**
+   * Setup event handlers for update monitor
+   */
+  private setupUpdateEventHandlers(): void {
+    if (!this.updateMonitor) {
+      return;
+    }
+
+    this.updateMonitor.on('update_available', (info) => {
+      logger.info('Update available', {
+        from: info.localCommit.shortHash,
+        to: info.remoteCommit.shortHash,
+        message: info.remoteCommit.message
+      });
+    });
+
+    this.updateMonitor.on('update_started', (data) => {
+      logger.warn('System update starting - service will restart soon', {
+        from: data.fromCommit.substring(0, 7),
+        to: data.toCommit.substring(0, 7)
+      });
+    });
+
+    this.updateMonitor.on('update_completed', (result) => {
+      logger.info('Update completed successfully', {
+        from: result.previousCommit.substring(0, 7),
+        to: result.newCommit.substring(0, 7),
+        duration: `${result.duration}ms`
+      });
+    });
+
+    this.updateMonitor.on('update_failed', (data) => {
+      logger.error('Update failed', {
+        phase: data.phase,
+        error: data.error.message
+      });
+
+      // Record the failure with recovery manager
+      this.recoveryManager.recordFailure('update_monitor', data.error, {
+        phase: data.phase,
+        rolledBack: data.result.rolledBack
+      });
+    });
+
+    this.updateMonitor.on('rollback_completed', (data) => {
+      if (data.success) {
+        logger.info('Rollback completed successfully', {
+          restoredCommit: data.restoredCommit.substring(0, 7)
+        });
+      } else {
+        logger.error('Rollback failed', {
+          restoredCommit: data.restoredCommit.substring(0, 7)
+        });
+      }
+    });
+
+    this.updateMonitor.on('update_blocked', (data) => {
+      logger.warn('Update blocked', {
+        reason: data.reason,
+        message: data.message
+      });
     });
   }
 
@@ -664,6 +744,10 @@ export class AgentOrchestrator {
     return this.healthMonitor;
   }
 
+  getUpdateMonitor(): UpdateMonitor | undefined {
+    return this.updateMonitor;
+  }
+
   /**
    * Get global context store (for WebSocket integration)
    */
@@ -935,6 +1019,11 @@ export class AgentOrchestrator {
   async shutdown(): Promise<void> {
     // Stop health monitoring
     this.healthMonitor.stop();
+
+    // Stop update monitoring
+    if (this.updateMonitor) {
+      this.updateMonitor.stop();
+    }
 
     // Shutdown global context
     this.globalContext.shutdown();

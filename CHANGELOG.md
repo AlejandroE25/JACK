@@ -8,6 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Automatic Update System**
+  - UpdateMonitor component polls git repository every 5 minutes for new commits
+  - Automatically fetches, pulls, rebuilds, and restarts NSSM service when updates detected
+  - Comprehensive backup system creates snapshots before each update in `.backups/` directory
+  - Automatic rollback on build/restart failure with git reset and backup restoration
+  - Mutex locking prevents concurrent updates
+  - Integration with ErrorRecoveryManager for automatic retry and failure handling
+  - Safety checks: blocks updates if local changes exist (configurable), validates conditions before updating
+  - Tracks statistics: total checks, updates applied, failures, rollbacks performed
+  - Files: `src/agent/updateMonitor.ts`, `src/agent/gitChecker.ts`, `src/types/update.ts`
+  - Configuration: `.env` variables (ENABLE_AUTO_UPDATE, AUTO_UPDATE_CHECK_INTERVAL, AUTO_UPDATE_REMOTE, AUTO_UPDATE_BRANCH, etc.)
+  - Integration: `src/agent/agentOrchestrator.ts`, `src/config/index.ts`
+
+- **Update Control API Endpoints**
+  - `GET /api/update/status` - Returns current auto-update system status with statistics
+  - `POST /api/update/trigger` - Manually triggers immediate update check (non-blocking)
+  - Endpoints return proper HTTP status codes and JSON responses
+  - Integration with AgentOrchestrator for access to UpdateMonitor
+  - File: `src/server/websocket.ts`
+
+- **Status Dashboard Enhancements**
+  - Added "Time to Next System Update" display with countdown timer
+  - Shows when the next automatic update check will occur
+  - Automatically updates every refresh cycle
+  - File: `src/cli/status-dashboard.ts`
+
 - **Fast-path routing for agent mode**
   - Agent orchestrator now uses RoutingService (Claude Haiku) for intelligent plugin routing
   - Simple queries (weather, news, wolfram) bypass task creation and execute directly
@@ -18,10 +44,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Impact: Agent mode now matches legacy mode's performance for simple queries
 
 ### Changed
+- **Status Dashboard Program Output**
+  - Replaced WebSocket activity log with actual program output from service log file
+  - Now tails `C:\proPACE\logs\service-stdout.log` for real-time debugging information
+  - Intelligent file position tracking reads only new content (not entire file each time)
+  - Expanded program output window from 3 rows to 5 rows for better visibility
+  - Reduced health monitor from 4 rows to 2 rows to accommodate larger log window
+  - Initial load shows last 50 lines only (prevents freezing on large log files)
+  - Incremental reads limited to 100KB chunks to prevent performance issues
+  - Added auto-focus on log box at startup with keyboard shortcuts (l/p to switch focus)
+  - File: `src/cli/status-dashboard.ts`
+
+- **Simplified Rebuild Script**
+  - Removed cleaning steps (no longer deletes node_modules or dist directories)
+  - Now only verifies critical dependencies, builds TypeScript project, and restarts NSSM service
+  - Reduced from 5 steps to 3 steps for faster development cycles
+  - File: `scripts/rebuild-windows.cmd`
+
 - Agent orchestrator processMessage() now checks plugin capabilities before creating tasks
 - Simple queries return instant responses instead of "Working on it..." messages
 
 ### Fixed
+- **Git ownership issue for NSSM service**
+  - Issue: Auto-update system failed because service runs as NT AUTHORITY\SYSTEM but repo owned by user account
+  - Error: "fatal: detected dubious ownership in repository at 'C:/proPACE'"
+  - Solution: Added C:/proPACE as safe directory at system level using `git config --system --add safe.directory C:/proPACE`
+  - Impact: UpdateMonitor now works correctly when service runs under SYSTEM account
+
+- **UpdateMonitor build errors**
+  - Fixed use of private `createAlert()` method - changed to public `recordFailure()` API
+  - Removed unused imports (CommitInfo, UpdateEventPayloads) that caused TypeScript warnings
+  - Files: `src/agent/updateMonitor.ts`, `src/agent/agentOrchestrator.ts`
+
+- **Status dashboard freezing on large log files**
+  - Issue: Dashboard would freeze when loading entire service log file (could be hundreds of MB)
+  - Solution: Implemented smart file position tracking to read only new content
+  - On initial load: Only reads last 50 lines instead of entire file
+  - On updates: Only reads new content since last position (max 100KB per read)
+  - Handles log rotation correctly (detects when file size decreases)
+  - File: `src/cli/status-dashboard.ts`
+
 - **Agent mode routing issue** - Agent orchestrator was creating tasks for ALL queries, even simple weather/news requests
   - Root cause: Missing RoutingService integration in agent mode
   - Solution: Added fast-path routing layer that checks plugin capabilities before task creation

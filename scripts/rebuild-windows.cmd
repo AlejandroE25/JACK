@@ -1,10 +1,11 @@
 @echo off
-REM Windows Clean Rebuild Script for proPACE
-REM This script performs a complete clean rebuild to fix module loading issues
+setlocal enabledelayedexpansion
+REM Windows Rebuild Script for proPACE
+REM This script verifies dependencies, builds the project, and restarts the service
 
 echo.
-echo === proPACE Windows Clean Rebuild ===
-echo This will clean and rebuild the entire project
+echo === proPACE Windows Rebuild ===
+echo This will verify, build, and restart the proPACE service
 echo.
 
 REM Check if we're in the right directory
@@ -16,68 +17,8 @@ if not exist "package.json" (
     exit /b 1
 )
 
-REM Step 1: Clean old build
-echo [1/5] Cleaning old build...
-
-REM Kill any running node processes
-taskkill /F /IM node.exe >nul 2>&1
-timeout /t 2 /nobreak >nul
-
-if exist "dist" (
-    rmdir /s /q "dist" 2>nul
-    echo       Removed dist/ directory
-)
-
-if exist "node_modules" (
-    echo       Removing node_modules/ ^(this may take a moment^)...
-
-    REM Remove better-sqlite3 separately first (it has locked .node files)
-    if exist "node_modules\better-sqlite3" (
-        echo       Removing better-sqlite3 native binaries...
-        del /f /q "node_modules\better-sqlite3\build\Release\*.node" 2>nul
-        rmdir /s /q "node_modules\better-sqlite3" 2>nul
-    )
-
-    REM Now remove everything else
-    rmdir /s /q "node_modules" 2>nul
-
-    REM If node_modules still exists, wait and retry
-    if exist "node_modules" (
-        echo       Waiting for file locks to release...
-        timeout /t 3 /nobreak >nul
-        rmdir /s /q "node_modules" 2>nul
-    )
-
-    echo       Removed node_modules/ directory
-)
-
-echo       * Clean complete
-echo.
-
-REM Step 2: Install dependencies
-echo [2/5] Installing dependencies...
-echo       Running: npm ci
-echo       ^(npm ci does a clean install from package-lock.json^)
-
-npm ci
-
-if errorlevel 1 (
-    echo.
-    echo       WARNING: npm ci failed, trying npm install as fallback...
-    npm install --legacy-peer-deps
-
-    if errorlevel 1 (
-        echo       ERROR during npm install
-        echo       Check the output above for errors
-        exit /b 1
-    )
-)
-
-echo       * Dependencies installed
-echo.
-
-REM Step 3: Verify critical dependencies
-echo [3/5] Verifying critical dependencies...
+REM Step 1: Verify critical dependencies
+echo [1/3] Verifying critical dependencies...
 
 set ALL_DEPS_OK=1
 
@@ -100,8 +41,8 @@ if %ALL_DEPS_OK%==0 (
 echo       * All critical dependencies present
 echo.
 
-REM Step 4: Build the project
-echo [4/5] Building TypeScript project...
+REM Step 2: Build the project
+echo [2/3] Building TypeScript project...
 echo       Running: npm run build
 
 npm run build
@@ -114,36 +55,50 @@ if errorlevel 1 (
 echo       * Build complete
 echo.
 
-REM Step 5: Verify build output
-echo [5/5] Verifying build output...
+REM Step 3: Restart the service
+echo [3/3] Restarting proPACE service...
 
-set ALL_FILES_OK=1
-
-call :check_file "dist\src\server\index.js"
-call :check_file "dist\src\config\index.js"
-call :check_file "dist\src\utils\logger.js"
-call :check_file "dist\src\utils\terminalUI.js"
-
-if %ALL_FILES_OK%==0 (
+REM Check if NSSM is available
+where nssm >nul 2>&1
+if errorlevel 1 (
     echo.
-    echo       ERROR: Build incomplete! Missing files
-    echo       This indicates a TypeScript compilation issue.
-    echo       Check the build output above for errors.
+    echo WARNING: NSSM not found in PATH
+    echo Skipping service restart
+    echo Please restart the service manually: nssm restart proPACE
     echo.
-    exit /b 1
+    goto :skip_restart
 )
 
-echo       * All critical files present
-echo.
+REM Check if service exists
+sc query proPACE >nul 2>&1
+if errorlevel 1 (
+    echo.
+    echo WARNING: proPACE service not found
+    echo Skipping service restart
+    echo If you want to run as a service, use: scripts\install-service-windows.cmd
+    echo.
+    goto :skip_restart
+)
+
+REM Restart the service
+nssm restart proPACE
+if errorlevel 1 (
+    echo       WARNING: Failed to restart service
+    echo       You may need to run this script as Administrator
+    echo       Or restart manually: nssm restart proPACE
+) else (
+    timeout /t 2 /nobreak >nul
+    for /f "tokens=*" %%a in ('nssm status proPACE') do set SERVICE_STATUS=%%a
+    echo       * Service restarted: !SERVICE_STATUS!
+)
+
+:skip_restart
 
 REM Success!
+echo.
 echo === Rebuild Complete! ===
 echo.
-echo Your proPACE server is ready to run.
-echo.
-echo Next steps
-echo   1. Ensure .env file exists with your API keys
-echo   2. Run npm start to start the server
+echo Your proPACE project has been rebuilt and the service restarted.
 echo.
 
 exit /b 0
@@ -156,15 +111,5 @@ if errorlevel 1 (
     set ALL_DEPS_OK=0
 ) else (
     echo       * %~1
-)
-exit /b 0
-
-REM Function to check if file exists
-:check_file
-if exist "%~1" (
-    echo       * %~1
-) else (
-    echo       X %~1 MISSING
-    set ALL_FILES_OK=0
 )
 exit /b 0

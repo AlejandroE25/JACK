@@ -15,6 +15,7 @@ import {
 } from '../../types/plugin.js';
 import { SystemDiagnostics, DiagnosticLevel } from '../../agent/diagnostics.js';
 import { PluginRegistry } from '../pluginRegistry.js';
+import { AgentOrchestrator } from '../../agent/agentOrchestrator.js';
 import { logger } from '../../utils/logger.js';
 
 export class DiagnosticPlugin implements Plugin {
@@ -28,6 +29,7 @@ export class DiagnosticPlugin implements Plugin {
   };
 
   private diagnostics?: SystemDiagnostics;
+  private orchestrator?: AgentOrchestrator;
 
   tools: PluginTool[] = [
     {
@@ -75,6 +77,22 @@ export class DiagnosticPlugin implements Plugin {
       capabilities: [PluginCapability.READ_ONLY],
       parameters: [],
       execute: this.getSystemHealth.bind(this)
+    },
+    {
+      name: 'trigger_update_check',
+      description: 'Manually trigger a check for system updates. Only available if auto-update is enabled. Useful for testing the update system.',
+      category: 'diagnostic',
+      capabilities: [PluginCapability.READ_ONLY],
+      parameters: [],
+      execute: this.triggerUpdateCheck.bind(this)
+    },
+    {
+      name: 'get_update_status',
+      description: 'Get the status of the auto-update system including last check time, update stats, and next scheduled check.',
+      category: 'diagnostic',
+      capabilities: [PluginCapability.READ_ONLY],
+      parameters: [],
+      execute: this.getUpdateStatus.bind(this)
     }
   ];
 
@@ -87,6 +105,13 @@ export class DiagnosticPlugin implements Plugin {
    */
   setPluginRegistry(registry: PluginRegistry): void {
     this.diagnostics = new SystemDiagnostics(registry);
+  }
+
+  /**
+   * Set the agent orchestrator (needed for update monitor access)
+   */
+  setOrchestrator(orchestrator: AgentOrchestrator): void {
+    this.orchestrator = orchestrator;
   }
 
   async shutdown(): Promise<void> {
@@ -333,6 +358,127 @@ export class DiagnosticPlugin implements Plugin {
       return {
         success: false,
         error: `Failed to get system health: ${(error as Error).message}`
+      };
+    }
+  }
+
+  /**
+   * Manually trigger an update check
+   */
+  private async triggerUpdateCheck(
+    _params: Record<string, unknown>,
+    _context: ExecutionContext
+  ): Promise<ToolResult> {
+    if (!this.orchestrator) {
+      return {
+        success: false,
+        error: 'Orchestrator not available'
+      };
+    }
+
+    const updateMonitor = this.orchestrator.getUpdateMonitor();
+
+    if (!updateMonitor) {
+      return {
+        success: false,
+        error: 'Auto-update is not enabled. Set ENABLE_AUTO_UPDATE=true to enable it.'
+      };
+    }
+
+    try {
+      logger.info('Manually triggering update check...');
+      await updateMonitor.checkNow();
+
+      return {
+        success: true,
+        data: {
+          message: 'Update check triggered successfully',
+          timestamp: new Date().toISOString()
+        }
+      };
+    } catch (error) {
+      logger.error('Error triggering update check:', error);
+      return {
+        success: false,
+        error: `Failed to trigger update check: ${(error as Error).message}`
+      };
+    }
+  }
+
+  /**
+   * Get update system status
+   */
+  private async getUpdateStatus(
+    _params: Record<string, unknown>,
+    _context: ExecutionContext
+  ): Promise<ToolResult> {
+    if (!this.orchestrator) {
+      return {
+        success: false,
+        error: 'Orchestrator not available'
+      };
+    }
+
+    const updateMonitor = this.orchestrator.getUpdateMonitor();
+
+    if (!updateMonitor) {
+      return {
+        success: true,
+        data: {
+          enabled: false,
+          message: 'Auto-update is not enabled. Set ENABLE_AUTO_UPDATE=true to enable it.'
+        }
+      };
+    }
+
+    try {
+      const status = updateMonitor.getStatus();
+
+      let output = `**Auto-Update Status**\n\n`;
+      output += `Enabled: Yes\n`;
+      output += `Running: ${status.isRunning ? 'Yes' : 'No'}\n`;
+      output += `Update in Progress: ${status.isUpdating ? 'Yes' : 'No'}\n\n`;
+
+      output += `**Statistics:**\n`;
+      output += `Total Checks: ${status.totalChecks}\n`;
+      output += `Updates Applied: ${status.updatesApplied}\n`;
+      output += `Updates Failed: ${status.updatesFailed}\n`;
+      output += `Rollbacks Performed: ${status.rollbacksPerformed}\n\n`;
+
+      if (status.lastCheckTime) {
+        output += `Last Check: ${status.lastCheckTime.toLocaleString()}\n`;
+      }
+
+      if (status.lastUpdateTime) {
+        output += `Last Update: ${status.lastUpdateTime.toLocaleString()}\n`;
+      }
+
+      if (status.nextCheckTime) {
+        const now = new Date();
+        const diff = status.nextCheckTime.getTime() - now.getTime();
+        const minutesUntil = Math.floor(diff / 60000);
+        const secondsUntil = Math.floor((diff % 60000) / 1000);
+        output += `Next Check: in ${minutesUntil}m ${secondsUntil}s\n`;
+      }
+
+      if (status.lastError) {
+        output += `\n**Last Error:** ${status.lastError}\n`;
+      }
+
+      output += `\nCurrent Commit: ${status.currentCommit.substring(0, 7)}\n`;
+
+      return {
+        success: true,
+        data: {
+          ...status,
+          formatted: output
+        }
+      };
+    } catch (error) {
+      logger.error('Error getting update status:', error);
+      return {
+        success: false,
+        error: `Failed to get update status: ${(error as Error).message}`
       };
     }
   }

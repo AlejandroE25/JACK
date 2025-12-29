@@ -1,4 +1,5 @@
 import { WebSocket } from 'ws';
+import { UpdateMonitorConfig } from './update.js';
 
 /**
  * Core message structure matching original Python format: "query$$response"
@@ -158,6 +159,9 @@ export interface PACEConfig {
   voiceTTSCacheTTL?: number;
   voiceSTTChunkDuration?: number;
   voiceICEServers?: string; // JSON string of ICE servers array
+
+  // Auto-Update System
+  updateMonitor?: UpdateMonitorConfig;
 }
 
 /**
