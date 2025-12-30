@@ -1,6 +1,13 @@
+@font-face {
+    font-family: 'couture';
+    src: url('https://aescamilla.tk/james/src/couture-bld-webfont.woff2') format('woff2'),
+         url('https://aescamilla.tk/james/src/couture-bld-webfont.woff2') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@1,800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
 
+/* Base Styles */
 * {
     margin: 0;
     padding: 0;
@@ -16,32 +23,34 @@ body {
     overflow: hidden;
 }
 
-/* Animated Background Blobs */
+/* Background Blobs (Preserved with Z-index fixes) */
 #background-blob {
     width: 100%;
     height: 100%;
-    position: absolute;
+    position: fixed;
+    z-index: 0;
+    pointer-events: none;
 }
 
 #blob {
+    z-index: 1;
     height: 150px;
     aspect-ratio: 1/1;
     animation: rotate 22s infinite;
     position: absolute;
     transform: translate(-50%, -50%);
-    background: rgb(2,0,36);
     background: linear-gradient(
         to right,
         rgba(13,17,25,1) 0%,
         rgba(57,68,93,1) 100%
     );
     border-radius: 50%;
+    pointer-events: none;
 }
 
 #blob1 {
     width: 350px;
     height: 250px;
-    background: rgb(2,0,36);
     background: linear-gradient(
         to right,
         rgba(13,17,25,1) 0%,
@@ -52,12 +61,12 @@ body {
     left: 50%;
     border-radius: 50%;
     animation: rotate 22s linear infinite;
+    pointer-events: none;
 }
 
 #blob2 {
     width: 250px;
     height: 350px;
-    background: rgb(2,0,36);
     background: linear-gradient(
         to right,
         rgba(57,68,93,1) 0%,
@@ -69,6 +78,7 @@ body {
     top: 50%;
     left: 50%;
     animation: rotate 11s linear infinite;
+    pointer-events: none;
 }
 
 @keyframes rotate {
@@ -83,16 +93,63 @@ body {
     }
 }
 
-/* Main Container */
+/* Grid Layout Container */
 .container {
+    display: grid;
+    grid-template-areas:
+        "info info"
+        "main panel";
+    grid-template-columns: 1fr 400px;
+    grid-template-rows: 60px 1fr;
     width: 100%;
-    height: 100%;
+    height: 100vh;
     background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255, 0.2) 1px, transparent 0);
     background-size: 5vmin 5vmin;
     backdrop-filter: blur(50px);
-    overflow-y: auto;
+    overflow: hidden;
 }
 
+.info-bar {
+    grid-area: info;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    z-index: 100;
+}
+
+.main-content {
+    grid-area: main;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 50;
+}
+
+.chat-panel {
+    grid-area: panel;
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    margin: 1rem;
+    margin-left: 0;
+    border-radius: 1rem;
+    overflow: hidden;
+}
+
+/* Glass Morphism Effect */
+.glass-morphism {
+    background: rgba(13, 17, 25, 0.7);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 2px solid rgba(252, 190, 36, 0.3);
+    box-shadow:
+        0 8px 32px 0 rgba(0, 0, 0, 0.37),
+        inset 0 0 20px rgba(252, 190, 36, 0.05);
+}
+
+/* Utility Classes */
 .unselectable {
     -webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -102,9 +159,26 @@ body {
     user-select: none;
 }
 
-/* Logo */
+/* Logo Styling */
+#pace_logo {
+    background: rgba(13, 17, 25, 0.5);
+    border-radius: 50%;
+    width: 250px;
+    height: 250px;
+    border: 2px solid #FCBE24;
+    box-shadow: 0 0 30px rgba(252, 190, 36, 0.3);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+}
+
+#pace_logo:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 40px rgba(252, 190, 36, 0.5);
+}
+
 #title {
-    font-size: 3em;
+    font-size: clamp(2rem, 4vw, 3rem);
     width: 100%;
     position: absolute;
     top: 50%;
@@ -117,306 +191,222 @@ body {
 }
 
 #pace {
-    font-family: 'Bebas Neue', sans-serif;
+    font-family: 'couture', sans-serif;
 }
 
 #underscore {
     font-family: 'JetBrains Mono', monospace;
-    animation: blink 1s infinite;
 }
 
-@keyframes blink {
-    0%, 50% { opacity: 1; }
-    51%, 100% { opacity: 0; }
+/* Info Bar */
+.time {
+    font-size: 1.2rem;
+    font-weight: 300;
+    color: #FCBE24;
 }
 
-#pace_logo {
-    background: rgba(13,17,25,0.5);
-    border-radius: 50%;
-    width: 250px;
-    height: 250px;
-    border: 2px solid #FCBE24;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-#pace_logo:hover {
-    transform: translate(-50%, -50%) scale(1.05);
-    box-shadow: 0 0 30px rgba(252, 190, 36, 0.5);
-}
-
-.health-ring {
-    position: absolute;
-    top: -5px;
-    left: -5px;
-    right: -5px;
-    bottom: -5px;
-    border-radius: 50%;
-    border: 3px solid transparent;
-    transition: border-color 0.3s ease;
-}
-
-.health-ring.healthy {
-    border-color: #10b981;
-}
-
-.health-ring.degraded {
-    border-color: #f59e0b;
-}
-
-.health-ring.unhealthy {
-    border-color: #ef4444;
-}
-
-/* Status Bar (top left) */
-.status-bar {
-    position: absolute;
-    top: 5%;
-    left: 5%;
-    font-size: 0.8em;
-    padding: 10px 15px;
-    border: 2px solid #FCBE24;
-    border-radius: 5px;
-    background: rgba(13,17,25,0.7);
+.ip {
+    font-weight: 100;
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+    border: 2px solid rgba(252, 190, 36, 0.3);
+    border-radius: 0.5rem;
+    background: rgba(13, 17, 25, 0.4);
     backdrop-filter: blur(10px);
 }
 
-.status-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+.ip #ipaddress {
+    font-weight: 900;
+    color: #b0b0b0;
 }
 
-.status-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #6b7280;
-    animation: pulse 2s infinite;
+/* Chat Panel Components */
+.chat-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(252, 190, 36, 0.2);
+    flex-shrink: 0;
 }
 
-.status-dot.connected {
-    background: #10b981;
+.header {
+    font-size: 1.5rem;
+    font-weight: 600;
 }
 
-.status-dot.disconnected {
-    background: #ef4444;
-    animation: none;
-}
-
-.status-dot.connecting {
-    background: #f59e0b;
-}
-
-/* Time (top right) */
-.time {
-    position: absolute;
-    top: 5%;
-    right: 5%;
-    font-size: 1.2em;
-}
-
-/* Conversation Panel (bottom left - takes most of height) */
-.conversation {
-    font-size: 1em;
-    position: absolute;
-    bottom: 5%;
-    left: 5%;
-    width: min(600px, 45vw);
-    height: 85vh;
-    border: 2px solid #FCBE24;
-    border-radius: 10px;
-    background: rgba(13,17,25,0.7);
-    backdrop-filter: blur(15px);
-    font-weight: 200;
-    font-size: 0.6em;
-    display: flex;
-    flex-direction: column;
-}
-
-.conversation .header {
-    font-size: 2em;
-    padding: 15px;
-}
-
-.conversation hr {
-    margin: 0 15px;
-    border-color: #FCBE24;
-    opacity: 0.3;
-}
-
-.messages {
+.chat-messages {
     flex: 1;
     overflow-y: auto;
-    padding: 15px;
+    overflow-x: hidden;
+    padding: 1rem;
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 1rem;
 }
 
 .message {
     display: flex;
     flex-direction: column;
-    gap: 5px;
-    animation: slideIn 0.3s ease;
+    gap: 0.5rem;
+    padding: 1rem;
+    border-radius: 0.75rem;
+    background: rgba(13, 17, 25, 0.4);
+    border: 1px solid rgba(252, 190, 36, 0.1);
 }
 
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.user-message {
+    align-self: flex-end;
+    max-width: 80%;
+    border-left: 3px solid rgba(252, 190, 36, 0.5);
 }
 
-.message .label {
-    font-weight: 600;
-    font-size: 1.1em;
+.ai-message {
+    align-self: flex-start;
+    max-width: 90%;
+    border-left: 3px solid rgba(57, 68, 93, 0.5);
 }
 
-.message.user .label {
+.message-label {
+    font-size: 0.75rem;
     color: #757474;
-    text-align: right;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
-.message.system .label {
-    color: #FCBE24;
-}
-
-.message .text {
+.message-content {
+    font-size: 1rem;
     color: #b1b0b0;
-    font-size: 1em;
-    line-height: 1.6;
+    line-height: 1.5;
     word-wrap: break-word;
-    white-space: pre-wrap; /* Preserve newlines */
+    overflow-wrap: break-word;
 }
 
-.message .text strong {
-    font-weight: 700;
-    color: #FCBE24;
+.chat-input {
+    padding: 1rem;
+    border-top: 1px solid rgba(252, 190, 36, 0.2);
+    flex-shrink: 0;
 }
 
-.message .text em {
-    font-style: italic;
-    color: #d4d4d4;
-}
-
-.message .text code {
-    background: rgba(252, 190, 36, 0.1);
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.95em;
-}
-
-.message.user .text {
-    text-align: right;
-    color: #878787;
-}
-
-.input-container {
-    padding: 15px;
-    border-top: 1px solid rgba(252, 190, 36, 0.3);
-}
-
-.input-container input {
+.chat-input input {
     width: 100%;
-    background: rgba(13,17,25,0.5);
-    border: 1px solid #FCBE24;
-    border-radius: 5px;
-    padding: 12px;
+    background: rgba(13, 17, 25, 0.6);
+    border: 1px solid rgba(252, 190, 36, 0.3);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    color: #FCBE24;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 1.2em;
-    outline: none;
     transition: all 0.3s ease;
 }
 
-.input-container input:focus {
+.chat-input input:focus {
+    outline: none;
     border-color: #FCBE24;
-    box-shadow: 0 0 10px rgba(252, 190, 36, 0.3);
+    box-shadow: 0 0 0 3px rgba(252, 190, 36, 0.1);
+    background: rgba(13, 17, 25, 0.8);
 }
 
-.input-container input::placeholder {
-    color: #757474;
+.chat-input input::placeholder {
+    color: rgba(252, 190, 36, 0.4);
 }
 
-/* Removed - no longer using info panel */
-
-/* Scrollbar Styling */
-::-webkit-scrollbar {
-    width: 6px;
+/* Custom Scrollbar */
+.chat-messages::-webkit-scrollbar {
+    width: 8px;
 }
 
-::-webkit-scrollbar-track {
-    background: rgba(13,17,25,0.5);
+.chat-messages::-webkit-scrollbar-track {
+    background: rgba(13, 17, 25, 0.3);
+    border-radius: 10px;
 }
 
-::-webkit-scrollbar-thumb {
+.chat-messages::-webkit-scrollbar-thumb {
+    background: rgba(252, 190, 36, 0.3);
+    border-radius: 10px;
+    transition: background 0.3s;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
     background: rgba(252, 190, 36, 0.5);
-    border-radius: 3px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-    background: rgba(252, 190, 36, 0.7);
-}
+/* Tablet Responsive (768px - 1023px) */
+@media (max-width: 1023px) and (min-width: 768px) {
+    .container {
+        grid-template-columns: 1fr 350px;
+    }
 
-/* Responsive Design */
-@media (max-width: 1024px) {
     #pace_logo {
         width: 200px;
         height: 200px;
     }
 
     #title {
-        font-size: 2.5em;
-    }
-
-    .conversation {
-        width: 45vw;
-        height: 60vh;
-    }
-
-    .info-panel {
-        width: 35vw;
+        font-size: clamp(1.5rem, 3vw, 2.5rem);
     }
 }
 
-@media (max-width: 768px) {
-    body {
-        font-size: 1.2em;
+/* Mobile Responsive (<768px) */
+@media (max-width: 767px) {
+    .container {
+        grid-template-areas:
+            "info"
+            "main"
+            "panel";
+        grid-template-columns: 1fr;
+        grid-template-rows: 60px 1fr 60vh;
     }
 
-    #pace_logo {
-        width: 150px;
-        height: 150px;
-        top: 20%;
-    }
-
-    #title {
-        font-size: 2em;
-    }
-
-    .conversation {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 60vh;
-        border-radius: 20px 20px 0 0;
-    }
-
-    .status-bar {
-        font-size: 0.7em;
+    .info-bar {
+        padding: 0.75rem 1rem;
     }
 
     .time {
-        font-size: 1em;
+        font-size: 1rem;
+    }
+
+    .ip {
+        font-size: 0.85rem;
+        padding: 0.4rem 0.8rem;
+    }
+
+    #pace_logo {
+        width: 180px;
+        height: 180px;
+    }
+
+    #title {
+        font-size: clamp(1.5rem, 5vw, 2.5rem);
+    }
+
+    .chat-panel {
+        margin: 0;
+        border-radius: 1rem 1rem 0 0;
+        max-height: 60vh;
+    }
+
+    .chat-messages {
+        padding: 0.75rem;
+    }
+
+    .message {
+        padding: 0.75rem;
+    }
+
+    .message-label {
+        font-size: 0.65rem;
+    }
+
+    .message-content {
+        font-size: 0.9rem;
+    }
+
+    .chat-input input {
+        font-size: 0.9rem;
+        padding: 0.65rem 0.85rem;
+    }
+
+    /* Make touch targets larger */
+    .chat-input {
+        min-height: 60px;
     }
 }
