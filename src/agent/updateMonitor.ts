@@ -417,19 +417,14 @@ export class UpdateMonitor extends EventEmitter {
       // Wait before restarting
       await this.delay(this.config.restartDelay);
 
-      // Restart service
-      logger.warn('Restarting service...');
-      try {
-        execSync('nssm restart proPACE', {
-          cwd: process.cwd(),
-          encoding: 'utf8',
-          stdio: 'pipe'
-        });
-        logger.info('Service restart initiated');
-      } catch (restartError: any) {
-        logger.error('Failed to restart service:', restartError);
-        // Note: This may fail if we're being shut down, which is expected
-      }
+      // Restart service by exiting - NSSM will automatically restart (AppExit Default Restart)
+      logger.warn('Restarting service via process exit...');
+      logger.info('NSSM will automatically restart the service with updated code');
+
+      // Schedule exit after a brief delay to allow logs to flush
+      setTimeout(() => {
+        process.exit(0);
+      }, 1000);
 
       // Return success result
       return {
