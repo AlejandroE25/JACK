@@ -123,6 +123,49 @@ function renderMarkdown(text) {
         return `<pre><code class="language-${language}">${code.trim()}</code></pre>`;
     });
 
+    // Tables - must come before other processing
+    html = html.replace(/(\|.+\|\n)+/g, function(table) {
+        const rows = table.trim().split('\n');
+        if (rows.length < 2) return table;
+
+        let tableHtml = '<table>';
+        let isFirstRow = true;
+        let headerProcessed = false;
+
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+
+            // Skip separator row (|---|---|)
+            if (row.match(/^\|[\s\-:|]+\|$/)) {
+                headerProcessed = true;
+                continue;
+            }
+
+            const cells = row.split('|').filter(cell => cell.trim() !== '');
+
+            if (cells.length === 0) continue;
+
+            tableHtml += '<tr>';
+
+            // First row before separator is header
+            if (isFirstRow && !headerProcessed) {
+                cells.forEach(cell => {
+                    tableHtml += `<th>${cell.trim()}</th>`;
+                });
+                isFirstRow = false;
+            } else {
+                cells.forEach(cell => {
+                    tableHtml += `<td>${cell.trim()}</td>`;
+                });
+            }
+
+            tableHtml += '</tr>';
+        }
+
+        tableHtml += '</table>';
+        return tableHtml;
+    });
+
     // Blockquotes
     html = html.replace(/^&gt;\s(.+)$/gm, '<blockquote>$1</blockquote>');
 
