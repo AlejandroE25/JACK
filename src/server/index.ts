@@ -219,9 +219,17 @@ class PACEServer {
         }
       });
 
-      // Send the final answer to the specific client only (already wrapped in JSON by WebSocket server)
-      // Note: The response is already sent via handleMessage -> processMessage flow
-      // This event handler is just for logging and TTS
+      // Send the final answer to the specific client
+      // This is needed because processMessage() returns immediately with "Working on it..."
+      // and the actual response comes later via this event
+      const responseMessage = {
+        type: 'message',
+        query: '', // Query was already sent, no need to repeat
+        response: result.finalAnswer,
+        timestamp: new Date().toISOString(),
+        status: 'complete'
+      };
+      this.wsServer.sendToClient(clientId, JSON.stringify(responseMessage));
       ui.displayOutgoingResponse(clientId, result.finalAnswer);
     });
 
@@ -230,8 +238,16 @@ class PACEServer {
       logger.error(`Task ${taskId} failed for client ${clientId}: ${error}`);
       ui.displayTaskStatus(taskId, 'failed');
 
-      // Send error to the specific client (already handled via handleMessage -> processMessage flow)
-      // This event handler is just for logging and UI display
+      // Send error to the specific client
+      const errorMessage = {
+        type: 'message',
+        query: '',
+        response: `Sorry, an error occurred: ${error}`,
+        timestamp: new Date().toISOString(),
+        status: 'error',
+        error
+      };
+      this.wsServer.sendToClient(clientId, JSON.stringify(errorMessage));
     });
 
     // Progress updates (optional - for real-time feedback)

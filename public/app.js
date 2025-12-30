@@ -92,9 +92,8 @@ function connect() {
                 }
                 typeWriter();
 
-                // Speak response if user sent the message and it's complete
+                // TTS is handled by server-side WebRTC voice interface
                 if (iSentTheMessage === true && message.status === 'complete') {
-                    speakText(responseMsg);
                     iSentTheMessage = false;
                 }
             }
@@ -239,11 +238,7 @@ function renderMarkdown(text) {
 
 var iSentTheMessage = true
 
-function speakText(textToSpeak){
-    var myAudio = new Audio("https://api.carterapi.com/v0/speak/vOxeSZM6JyPBInc7YGithemFFMI4yKtb/" + textToSpeak);
-    console.log(myAudio.src)
-    myAudio.play()
-}
+// TTS is handled server-side via WebRTC voice interface plugin
 
 // Input handling
 let inputline = document.getElementById("inputline")
