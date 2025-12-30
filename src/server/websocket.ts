@@ -372,9 +372,9 @@ export class PACEWebSocketServer {
     // Process message asynchronously (non-blocking)
     (async () => {
       try {
-        // Send immediate acknowledgment
+        // Send immediate acknowledgment to the specific client only
         const acknowledgmentMessage = `${text}$$🔍 Processing...`;
-        this.broadcast(acknowledgmentMessage);
+        this.sendToClient(clientId, acknowledgmentMessage);
 
         // Call the message handler if set
         let response: string;
@@ -385,9 +385,9 @@ export class PACEWebSocketServer {
           response = `Echo: ${text}`;
         }
 
-        // Broadcast final response to all clients
-        const broadcastMessage = `${text}$$${response}`;
-        this.broadcast(broadcastMessage);
+        // Send final response to the specific client only
+        const responseMessage = `${text}$$${response}`;
+        this.sendToClient(clientId, responseMessage);
       } catch (error) {
         logger.error(`Error handling message from ${clientId}:`, error);
         const errorMessage = `${text}$$Sorry, an error occurred processing your request.`;
