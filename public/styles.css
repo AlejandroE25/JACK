@@ -257,22 +257,14 @@ body {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    padding: 1rem;
-    border-radius: 0.75rem;
-    background: rgba(13, 17, 25, 0.4);
-    border: 1px solid rgba(252, 190, 36, 0.1);
 }
 
 .user-message {
-    align-self: flex-end;
-    max-width: 80%;
-    border-left: 3px solid rgba(252, 190, 36, 0.5);
+    margin-bottom: 1rem;
 }
 
 .ai-message {
-    align-self: flex-start;
-    max-width: 90%;
-    border-left: 3px solid rgba(57, 68, 93, 0.5);
+    margin-bottom: 1.5rem;
 }
 
 .message-label {
@@ -396,10 +388,6 @@ body {
     }
 
     .chat-messages {
-        padding: 0.75rem;
-    }
-
-    .message {
         padding: 0.75rem;
     }
 
