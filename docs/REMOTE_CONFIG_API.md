@@ -151,25 +151,39 @@ curl -X DELETE http://10.0.0.69:3000/api/config \
 
 ## Using the Shell Script
 
-A convenience script is provided for easier command-line management.
+Convenience scripts are provided for easier command-line management.
 
 ### Setup
 
+**Linux/macOS (Bash):**
 ```bash
 export AUTH_TOKEN="your-secure-token"
 export SERVER_URL="http://10.0.0.69:3000"  # Optional, defaults to this
+```
+
+**Windows (PowerShell):**
+```powershell
+$env:AUTH_TOKEN = "your-secure-token"
+$env:SERVER_URL = "http://10.0.0.69:3000"  # Optional, defaults to this
 ```
 
 ### Commands
 
 #### View Current Config
 
+**Linux/macOS:**
 ```bash
 AUTH_TOKEN=mytoken ./scripts/update-env.sh get
 ```
 
+**Windows:**
+```powershell
+$env:AUTH_TOKEN='mytoken'; .\scripts\update-env.ps1 get
+```
+
 #### Update Variables
 
+**Linux/macOS:**
 ```bash
 # Update single variable
 AUTH_TOKEN=mytoken ./scripts/update-env.sh set OPENAI_API_KEY=sk-new-key
@@ -181,10 +195,25 @@ AUTH_TOKEN=mytoken ./scripts/update-env.sh set \
   ENABLE_AGENT_MODE=true
 ```
 
+**Windows:**
+```powershell
+# Update single variable
+$env:AUTH_TOKEN='mytoken'; .\scripts\update-env.ps1 set OPENAI_API_KEY=sk-new-key
+
+# Update multiple variables
+$env:AUTH_TOKEN='mytoken'; .\scripts\update-env.ps1 set OPENAI_API_KEY=sk-new-key PORT=9001 ENABLE_AGENT_MODE=true
+```
+
 #### Delete Variables
 
+**Linux/macOS:**
 ```bash
 AUTH_TOKEN=mytoken ./scripts/update-env.sh delete OLD_KEY UNUSED_VAR
+```
+
+**Windows:**
+```powershell
+$env:AUTH_TOKEN='mytoken'; .\scripts\update-env.ps1 delete OLD_KEY UNUSED_VAR
 ```
 
 ---

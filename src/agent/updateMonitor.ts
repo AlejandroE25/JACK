@@ -402,7 +402,13 @@ export class UpdateMonitor extends EventEmitter {
       // Migrate environment variables
       logger.info('Migrating environment variables...');
       try {
-        const migrateOutput = execSync('bash scripts/migrate-env.sh', {
+        // Detect platform and use appropriate script
+        const isWindows = process.platform === 'win32';
+        const migrateCommand = isWindows
+          ? 'powershell -ExecutionPolicy Bypass -File scripts/migrate-env.ps1'
+          : 'bash scripts/migrate-env.sh';
+
+        const migrateOutput = execSync(migrateCommand, {
           cwd: process.cwd(),
           encoding: 'utf8',
           timeout: 10000,
