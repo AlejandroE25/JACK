@@ -118,9 +118,49 @@ Implemented a two-tier routing system in agent mode (see [agentOrchestrator.ts:3
 
 ---
 
-### API Endpoints for Server Information
+### Browser Voice Interface Implementation
 **Priority:** High
-**Target Date:** Tomorrow
+**Status:** 📋 PLANNED
+**Plan Location:** `/Users/CDN4LIFE/.claude/plans/streamed-riding-babbage.md`
+
+Implement automatic voice responses for the browser interface using WebRTC and Web Audio API. The server-side TTS infrastructure is fully operational - this adds the missing client-side components to receive and play audio.
+
+#### Goals
+- ✅ **Automatic playback** - Audio plays immediately when AI responds (Jarvis-like experience)
+- ✅ **TTS only** - Focus on voice output; microphone/STT postponed for future
+- ✅ **Auto-detect WebSocket URL** - Use window.location instead of hardcoded IP
+- ✅ **Speaking indicator** - Pulse/glow effect on PACE logo during playback
+
+#### Implementation Checklist
+
+**Files to Create (2 new files)**:
+- [ ] Create `public/webrtc-client.js` - WebRTC peer connection manager
+- [ ] Create `public/audio-player.js` - Web Audio API playback system
+
+**Files to Modify (4 existing files)**:
+- [ ] Fix critical bug in `src/server/index.ts` (line 355) - Add voicePlugin.setWebSocketServer() call
+- [ ] Update `public/app.js` - Auto-detect WebSocket URL, integrate WebRTC, handle signaling
+- [ ] Update `public/index.html` - Add script tags for new JS files
+- [ ] Update `public/styles.css` - Add speaking indicator pulse animation
+
+#### Technical Details
+- **WebRTC Data Channel**: "tts-audio" label, receives MP3 chunks from server
+- **Web Audio API**: Decode and play MP3 chunks seamlessly
+- **Signaling**: WebSocket-based offer/answer/ICE exchange
+- **Visual Feedback**: Gold pulse animation on logo during speech (#FCBE24)
+- **Interruption**: User can interrupt TTS by typing
+
+#### Performance Targets
+- WebRTC connection: <2s from page load to data channel open
+- First audio latency: <500ms from TTS_CHUNK to first audio output
+- Chunk gaps: 0ms (seamless playback via queue scheduling)
+- Logo animation: Smooth 60fps pulse effect
+
+---
+
+### API Endpoints for Server Information
+**Priority:** Medium
+**Target Date:** TBD
 
 Implement REST API endpoints that expose server information and state to external clients. This will allow the CLI and other clients to fetch data more efficiently without relying solely on WebSocket message parsing.
 

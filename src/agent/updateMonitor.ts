@@ -399,6 +399,23 @@ export class UpdateMonitor extends EventEmitter {
       logger.info(`Pulling changes from ${this.config.remoteName}/${this.config.remoteBranch}...`);
       await this.gitChecker.pull(this.config.remoteName, this.config.remoteBranch);
 
+      // Migrate environment variables
+      logger.info('Migrating environment variables...');
+      try {
+        const migrateOutput = execSync('bash scripts/migrate-env.sh', {
+          cwd: process.cwd(),
+          encoding: 'utf8',
+          timeout: 10000,
+          stdio: 'pipe'
+        });
+        logger.info('Environment migration completed', { output: migrateOutput });
+      } catch (migrateError: any) {
+        // Non-critical: log warning and continue
+        logger.warn('Environment migration failed (non-critical)', {
+          error: migrateError.message
+        });
+      }
+
       // Build project
       logger.info('Building project...');
       try {

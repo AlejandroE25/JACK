@@ -3,11 +3,13 @@ import { createServer } from 'http';
 import { readFileSync } from 'fs';
 import { join, extname } from 'path';
 import { randomUUID } from 'crypto';
+import express from 'express';
 import { PACEClient } from '../types/index.js';
 import { logger } from '../utils/logger.js';
 import { AgentOrchestrator } from '../agent/agentOrchestrator.js';
 import { WeatherService } from '../services/weatherService.js';
 import { NewsService } from '../services/newsService.js';
+import { apiRouter } from './api/routes.js';
 
 export interface WebSocketServerOptions {
   port: number;
@@ -21,6 +23,7 @@ export interface WebSocketServerOptions {
 export class PACEWebSocketServer {
   private wss: WebSocketServer | null = null;
   private httpServer: any = null;
+  private app: express.Application;
   private clients: Map<string, PACEClient> = new Map();
   private isServerRunning: boolean = false;
   private options: WebSocketServerOptions;
@@ -34,6 +37,17 @@ export class PACEWebSocketServer {
 
   constructor(options: WebSocketServerOptions) {
     this.options = options;
+
+    // Initialize Express app
+    this.app = express();
+    this.app.use(express.json());
+    this.app.use(express.urlencoded({ extended: true }));
+
+    // Mount API routes
+    this.app.use('/api', apiRouter);
+
+    // Static files middleware
+    this.app.use(express.static(join(process.cwd(), 'public')));
   }
 
   /**
@@ -90,10 +104,8 @@ export class PACEWebSocketServer {
    */
   async start(): Promise<void> {
     return new Promise((resolve) => {
-      // Create HTTP server for static files
-      this.httpServer = createServer((req, res) => {
-        this.handleHttpRequest(req, res);
-      });
+      // Create HTTP server with Express app
+      this.httpServer = createServer(this.app);
 
       // Create WebSocket server attached to HTTP server
       this.wss = new WebSocketServer({ server: this.httpServer });
