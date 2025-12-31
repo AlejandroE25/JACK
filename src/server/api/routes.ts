@@ -6,7 +6,6 @@
 
 import express, { Request, Response } from 'express';
 import { getConfig, updateConfig, deleteConfigKeys } from './configController.js';
-import { logger } from '../../utils/logger.js';
 
 export const apiRouter = express.Router();
 
@@ -30,7 +29,7 @@ apiRouter.get('/config', async (req: Request, res: Response) => {
     return res.status(401).json(result);
   }
 
-  res.json(result);
+  return res.json(result);
 });
 
 /**
@@ -57,7 +56,7 @@ apiRouter.post('/config', async (req: Request, res: Response) => {
     return res.status(400).json(result);
   }
 
-  res.json(result);
+  return res.json(result);
 });
 
 /**
@@ -91,15 +90,15 @@ apiRouter.delete('/config', async (req: Request, res: Response) => {
     return res.status(400).json(result);
   }
 
-  res.json(result);
+  return res.json(result);
 });
 
 /**
  * GET /api/health
  * Health check endpoint
  */
-apiRouter.get('/health', (req: Request, res: Response) => {
-  res.json({
+apiRouter.get('/health', (_req: Request, res: Response) => {
+  return res.json({
     success: true,
     status: 'healthy',
     uptime: process.uptime(),

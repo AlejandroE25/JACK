@@ -8,7 +8,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { logger } from '../../utils/logger.js';
-import { config } from '../../config/index.js';
 
 /**
  * Authentication token for config updates

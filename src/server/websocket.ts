@@ -1,7 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
-import { readFileSync } from 'fs';
-import { join, extname } from 'path';
+import { join } from 'path';
 import { randomUUID } from 'crypto';
 import express from 'express';
 import { PACEClient } from '../types/index.js';
@@ -45,6 +44,11 @@ export class PACEWebSocketServer {
 
     // Mount API routes
     this.app.use('/api', apiRouter);
+
+    // Handle legacy API endpoints
+    this.app.use('/api', (req, res) => {
+      this.handleApiRequest(req, res);
+    });
 
     // Static files middleware
     this.app.use(express.static(join(process.cwd(), 'public')));
@@ -129,55 +133,6 @@ export class PACEWebSocketServer {
         logger.error('HTTP server error:', error);
       });
     });
-  }
-
-  /**
-   * Handle HTTP requests for static files and API endpoints
-   */
-  private handleHttpRequest(req: any, res: any): void {
-    // Handle API endpoints
-    if (req.url.startsWith('/api/')) {
-      this.handleApiRequest(req, res);
-      return;
-    }
-
-    // Handle static files
-    let filePath = req.url === '/' ? '/index.html' : req.url;
-    filePath = join(process.cwd(), 'public', filePath);
-
-    const mimeTypes: Record<string, string> = {
-      '.html': 'text/html',
-      '.js': 'text/javascript',
-      '.css': 'text/css',
-      '.json': 'application/json',
-      '.png': 'image/png',
-      '.jpg': 'image/jpg',
-      '.gif': 'image/gif',
-      '.svg': 'image/svg+xml',
-      '.ico': 'image/x-icon'
-    };
-
-    const ext = extname(filePath);
-    const contentType = mimeTypes[ext] || 'application/octet-stream';
-
-    try {
-      const content = readFileSync(filePath);
-      res.writeHead(200, {
-        'Content-Type': contentType,
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      });
-      res.end(content, 'utf-8');
-    } catch (error) {
-      if ((error as any).code === 'ENOENT') {
-        res.writeHead(404);
-        res.end('File not found');
-      } else {
-        res.writeHead(500);
-        res.end(`Server error: ${(error as Error).message}`);
-      }
-    }
   }
 
   /**
