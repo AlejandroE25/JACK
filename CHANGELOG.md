@@ -5,6 +5,13 @@ All notable changes to proPACE will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Client-Side JavaScript Tests** - Added comprehensive browser-side test coverage for voice interface
+  - `tests/unit/client/webrtc-client.test.ts` - 21 tests for WebRTC peer connection management
+  - `tests/unit/client/audio-player.test.ts` - 23 tests for Web Audio API playback system
+  - Mocked browser APIs: RTCPeerConnection, AudioContext, TextDecoder
+  - All 44 client-side tests passing with full coverage of signaling, audio decoding, and playback queue
+  - Tests verify connection state, retry logic, error handling, and cleanup
+
 - **Google Search Integration** - Added external knowledge queries with Google Custom Search API
   - New `GoogleSearchService` for fast search results (~300-500ms)
   - New `SearchSummarizer` using Claude Haiku to add butler personality to search results (~200-400ms)
