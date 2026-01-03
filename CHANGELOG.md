@@ -4,6 +4,15 @@ All notable changes to proPACE will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- **WebRTC Migration: wrtc → werift** - Migrated to werift for Node.js 20+ compatibility
+  - Replaced `wrtc` (unmaintained since 2020, Node 10-18 only) with `werift` (actively maintained, Node 16+)
+  - Full Node.js 24 compatibility achieved - resolves "wrtc package not available" errors
+  - Pure JavaScript implementation (no native compilation/build tools required)
+  - Better TypeScript support and modern WebRTC API
+  - Created 30 comprehensive unit tests for werift implementation - all passing
+  - See [WERIFT_MIGRATION.md](docs/WERIFT_MIGRATION.md) for migration details
+
 ### Added
 - **Client-Side JavaScript Tests** - Added comprehensive browser-side test coverage for voice interface
   - `tests/unit/client/webrtc-client.test.ts` - 21 tests for WebRTC peer connection management
