@@ -138,8 +138,12 @@ class WebRTCClient {
     }
 
     // Set remote description
+    // Server sends { type: 'webrtc-offer', sdp: '...', clientId: '...' }
     await this.peerConnection.setRemoteDescription(
-      new RTCSessionDescription(message.offer)
+      new RTCSessionDescription({
+        type: 'offer',
+        sdp: message.sdp
+      })
     );
 
     // Create answer

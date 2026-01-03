@@ -123,7 +123,7 @@ describe('WebRTCClient', () => {
 
       const offerMessage = {
         type: 'webrtc-offer',
-        offer: { type: 'offer', sdp: 'mock-offer-sdp' },
+        sdp: 'mock-offer-sdp',
         clientId: 'server-assigned-id'
       };
 
@@ -141,7 +141,7 @@ describe('WebRTCClient', () => {
 
       const offerMessage = {
         type: 'webrtc-offer',
-        offer: { type: 'offer', sdp: 'mock-offer-sdp' },
+        sdp: 'mock-offer-sdp',
         clientId: 'server-id'
       };
 
@@ -210,7 +210,7 @@ describe('WebRTCClient', () => {
       // Now handle the offer
       const offerMessage = {
         type: 'webrtc-offer',
-        offer: { type: 'offer', sdp: 'mock-offer-sdp' },
+        sdp: 'mock-offer-sdp',
         clientId: 'test-client'
       };
 
@@ -397,7 +397,7 @@ describe('WebRTCClient', () => {
 
       const offerMessage = {
         type: 'webrtc-offer',
-        offer: { type: 'offer', sdp: 'bad-sdp' }
+        sdp: 'bad-sdp'
       };
 
       await client.handleSignalingMessage(offerMessage);
@@ -416,7 +416,7 @@ describe('WebRTCClient', () => {
 
       const offerMessage = {
         type: 'webrtc-offer',
-        offer: { type: 'offer', sdp: 'mock-sdp' },
+        sdp: 'mock-sdp',
         clientId: 'server-assigned-id'
       };
 
