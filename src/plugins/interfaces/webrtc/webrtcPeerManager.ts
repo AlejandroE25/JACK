@@ -2,17 +2,34 @@ import { EventEmitter } from 'events';
 import type { Logger } from 'winston';
 import { logger as defaultLogger } from '../../../utils/logger.js';
 
-// NOTE: For production server-side use, install 'wrtc' package:
-// npm install wrtc
-// Then uncomment: import wrtc from 'wrtc';
-// For now, we'll use stub types that match the WebRTC API
+// Import wrtc for Node.js WebRTC support
+let RTCPeerConnection: any;
+let RTCIceCandidate: any;
+let RTCSessionDescription: any;
+let wrtcLoaded = false;
 
-// @ts-ignore - wrtc package to be installed in production
-const RTCPeerConnection = global.RTCPeerConnection || class RTCPeerConnectionStub {};
-// @ts-ignore
-const RTCIceCandidate = global.RTCIceCandidate || class RTCIceCandidateStub {};
-// @ts-ignore
-const RTCSessionDescription = global.RTCSessionDescription || class RTCSessionDescriptionStub {};
+// Try to load wrtc package (optional dependency)
+async function loadWebRTC() {
+  if (wrtcLoaded) return;
+
+  try {
+    // @ts-ignore - wrtc is an optional dependency
+    const wrtc = await import('wrtc');
+    RTCPeerConnection = wrtc.RTCPeerConnection;
+    RTCIceCandidate = wrtc.RTCIceCandidate;
+    RTCSessionDescription = wrtc.RTCSessionDescription;
+    wrtcLoaded = true;
+    defaultLogger.info('✓ wrtc package loaded successfully for Node.js WebRTC support');
+  } catch (err) {
+    // Fall back to global WebRTC (browser environment or stubs for tests)
+    RTCPeerConnection = (global as any).RTCPeerConnection || class RTCPeerConnectionStub {
+      createDataChannel() { throw new Error('wrtc package not installed'); }
+    };
+    RTCIceCandidate = (global as any).RTCIceCandidate || class RTCIceCandidateStub {};
+    RTCSessionDescription = (global as any).RTCSessionDescription || class RTCSessionDescriptionStub {};
+    defaultLogger.warn('⚠️  wrtc package not available - WebRTC voice features disabled. Install with: npm install wrtc');
+  }
+}
 
 /**
  * Connection statistics for monitoring
@@ -36,6 +53,7 @@ export class WebRTCPeerManager extends EventEmitter {
   private audioQueues: Map<string, Buffer[]> = new Map();
   private iceServers: any[];
   private logger: Logger;
+  private initialized: boolean = false;
 
   private readonly DATA_CHANNEL_LABEL = 'tts-audio';
   private readonly HIGH_WATER_MARK = 256 * 1024; // 256KB
@@ -47,9 +65,21 @@ export class WebRTCPeerManager extends EventEmitter {
   }
 
   /**
+   * Initialize WebRTC (load wrtc package)
+   */
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
+    await loadWebRTC();
+    this.initialized = true;
+  }
+
+  /**
    * Create new peer connection for client
    */
   async createPeerConnection(clientId: string): Promise<any> {
+    // Ensure WebRTC is initialized
+    await this.initialize();
+
     // Return existing connection if already exists
     if (this.peerConnections.has(clientId)) {
       return this.peerConnections.get(clientId)!;
@@ -175,6 +205,9 @@ export class WebRTCPeerManager extends EventEmitter {
     clientId: string,
     answer: any
   ): Promise<void> {
+    // Ensure WebRTC is initialized
+    await this.initialize();
+
     const pc = this.peerConnections.get(clientId);
     if (!pc) {
       throw new Error(`No peer connection found for client ${clientId}`);
@@ -193,6 +226,9 @@ export class WebRTCPeerManager extends EventEmitter {
     clientId: string,
     candidate: any
   ): Promise<void> {
+    // Ensure WebRTC is initialized
+    await this.initialize();
+
     const pc = this.peerConnections.get(clientId);
     if (!pc) {
       throw new Error(`No peer connection found for client ${clientId}`);
