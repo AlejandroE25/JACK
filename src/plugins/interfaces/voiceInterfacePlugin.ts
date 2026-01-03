@@ -167,6 +167,11 @@ export class VoiceInterfacePlugin extends BasePlugin {
     this.signalingService.initialize();
     this.audioProcessor.initialize();
 
+    // Register WebRTC signaling handler to route messages to signaling service
+    wsServer.setWebRTCSignalingHandler((clientId: string, message: string) => {
+      return this.signalingService!.handleWebSocketMessage(clientId, message);
+    });
+
     // Register handler for new client connections
     wsServer.setClientConnectedHandler((clientId: string) => {
       this.handleClientConnected(clientId);
