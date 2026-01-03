@@ -390,15 +390,15 @@ export class PACEWebSocketServer {
     try {
       const parsed = JSON.parse(message);
 
-      // Check if this is a WebRTC signaling message
-      if (parsed.type === 'webrtc-signal' && this.onWebRTCSignalingHandler) {
-        logger.info(`Client ${clientId} sent WebRTC signaling message: ${parsed.signal}`);
+      // Check if this is a WebRTC signaling message (answer or ICE candidate)
+      if ((parsed.type === 'webrtc-answer' || parsed.type === 'webrtc-ice') && this.onWebRTCSignalingHandler) {
+        logger.info(`Client ${clientId} sent WebRTC signaling message: ${parsed.type}`);
 
         // Handle WebRTC signaling asynchronously
         const handler = this.onWebRTCSignalingHandler;
         (async () => {
           try {
-            await handler(clientId, parsed);
+            await handler(clientId, message);
           } catch (error) {
             logger.error(`Error handling WebRTC signaling from ${clientId}:`, error);
           }
