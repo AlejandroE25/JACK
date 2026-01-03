@@ -1,5 +1,6 @@
 let response = document.getElementById("response-text")
 let queryText = document.getElementById("query-text")
+let ws = null; // WebSocket connection
 
 window.onload = function() {
     //connect to the websocket server
