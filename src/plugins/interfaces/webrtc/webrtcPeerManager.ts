@@ -1,35 +1,7 @@
 import { EventEmitter } from 'events';
 import type { Logger } from 'winston';
 import { logger as defaultLogger } from '../../../utils/logger.js';
-
-// Import wrtc for Node.js WebRTC support
-let RTCPeerConnection: any;
-let RTCIceCandidate: any;
-let RTCSessionDescription: any;
-let wrtcLoaded = false;
-
-// Try to load wrtc package (optional dependency)
-async function loadWebRTC() {
-  if (wrtcLoaded) return;
-
-  try {
-    // @ts-ignore - wrtc is an optional dependency
-    const wrtc = await import('wrtc');
-    RTCPeerConnection = wrtc.RTCPeerConnection;
-    RTCIceCandidate = wrtc.RTCIceCandidate;
-    RTCSessionDescription = wrtc.RTCSessionDescription;
-    wrtcLoaded = true;
-    defaultLogger.info('✓ wrtc package loaded successfully for Node.js WebRTC support');
-  } catch (err) {
-    // Fall back to global WebRTC (browser environment or stubs for tests)
-    RTCPeerConnection = (global as any).RTCPeerConnection || class RTCPeerConnectionStub {
-      createDataChannel() { throw new Error('wrtc package not installed'); }
-    };
-    RTCIceCandidate = (global as any).RTCIceCandidate || class RTCIceCandidateStub {};
-    RTCSessionDescription = (global as any).RTCSessionDescription || class RTCSessionDescriptionStub {};
-    defaultLogger.warn('⚠️  wrtc package not available - WebRTC voice features disabled. Install with: npm install wrtc');
-  }
-}
+import { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate } from 'werift';
 
 /**
  * Connection statistics for monitoring
@@ -44,16 +16,15 @@ export interface ConnectionStats {
 }
 
 /**
- * WebRTC Peer Manager
+ * WebRTC Peer Manager (using werift for Node.js 20+ compatibility)
  * Manages RTCPeerConnection instances and data channels for each client
  */
 export class WebRTCPeerManager extends EventEmitter {
-  private peerConnections: Map<string, any> = new Map();
+  private peerConnections: Map<string, RTCPeerConnection> = new Map();
   private dataChannels: Map<string, any> = new Map();
   private audioQueues: Map<string, Buffer[]> = new Map();
   private iceServers: any[];
   private logger: Logger;
-  private initialized: boolean = false;
 
   private readonly DATA_CHANNEL_LABEL = 'tts-audio';
   private readonly HIGH_WATER_MARK = 256 * 1024; // 256KB
@@ -62,24 +33,13 @@ export class WebRTCPeerManager extends EventEmitter {
     super();
     this.iceServers = iceServers;
     this.logger = (logger || defaultLogger) as Logger;
-  }
-
-  /**
-   * Initialize WebRTC (load wrtc package)
-   */
-  async initialize(): Promise<void> {
-    if (this.initialized) return;
-    await loadWebRTC();
-    this.initialized = true;
+    this.logger.info('✓ WebRTC Peer Manager initialized with werift (Node.js 20+ compatible)');
   }
 
   /**
    * Create new peer connection for client
    */
-  async createPeerConnection(clientId: string): Promise<any> {
-    // Ensure WebRTC is initialized
-    await this.initialize();
-
+  async createPeerConnection(clientId: string): Promise<RTCPeerConnection> {
     // Return existing connection if already exists
     if (this.peerConnections.has(clientId)) {
       return this.peerConnections.get(clientId)!;
@@ -112,7 +72,7 @@ export class WebRTCPeerManager extends EventEmitter {
    */
   private setupPeerConnectionHandlers(
     clientId: string,
-    pc: any
+    pc: RTCPeerConnection
   ): void {
     // ICE candidate gathering
     pc.onicecandidate = (event: any) => {
@@ -184,7 +144,7 @@ export class WebRTCPeerManager extends EventEmitter {
   /**
    * Create WebRTC offer
    */
-  async createOffer(clientId: string): Promise<any> {
+  async createOffer(clientId: string): Promise<RTCSessionDescription> {
     const pc = this.peerConnections.get(clientId);
     if (!pc) {
       throw new Error(`No peer connection found for client ${clientId}`);
@@ -195,7 +155,7 @@ export class WebRTCPeerManager extends EventEmitter {
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
-    return offer;
+    return pc.localDescription!;
   }
 
   /**
@@ -205,9 +165,6 @@ export class WebRTCPeerManager extends EventEmitter {
     clientId: string,
     answer: any
   ): Promise<void> {
-    // Ensure WebRTC is initialized
-    await this.initialize();
-
     const pc = this.peerConnections.get(clientId);
     if (!pc) {
       throw new Error(`No peer connection found for client ${clientId}`);
@@ -215,7 +172,7 @@ export class WebRTCPeerManager extends EventEmitter {
 
     this.logger.info(`Setting remote answer for ${clientId}`);
 
-    const remoteDesc = new RTCSessionDescription(answer);
+    const remoteDesc = new RTCSessionDescription(answer.sdp, answer.type);
     await pc.setRemoteDescription(remoteDesc);
   }
 
@@ -226,9 +183,6 @@ export class WebRTCPeerManager extends EventEmitter {
     clientId: string,
     candidate: any
   ): Promise<void> {
-    // Ensure WebRTC is initialized
-    await this.initialize();
-
     const pc = this.peerConnections.get(clientId);
     if (!pc) {
       throw new Error(`No peer connection found for client ${clientId}`);
@@ -237,7 +191,12 @@ export class WebRTCPeerManager extends EventEmitter {
     this.logger.debug(`Adding ICE candidate for ${clientId}`);
 
     if (candidate.candidate) {
-      const iceCandidate = new RTCIceCandidate(candidate);
+      // werift expects a single object with all properties
+      const iceCandidate = new RTCIceCandidate({
+        candidate: candidate.candidate,
+        sdpMid: candidate.sdpMid,
+        sdpMLineIndex: candidate.sdpMLineIndex
+      });
       await pc.addIceCandidate(iceCandidate);
     }
   }

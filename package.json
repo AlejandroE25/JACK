@@ -56,12 +56,10 @@
     "openai": "^4.72.0",
     "rss-parser": "^3.13.0",
     "sax": "^1.4.1",
+    "werift": "^0.22.2",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0",
     "ws": "^8.18.3"
-  },
-  "optionalDependencies": {
-    "wrtc": "^0.4.7"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
