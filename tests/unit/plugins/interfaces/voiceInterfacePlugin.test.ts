@@ -230,6 +230,87 @@ describe('VoiceInterfacePlugin', () => {
     });
   });
 
+  describe('WebRTC Integration', () => {
+    it('should register WebRTC signaling handler when WebSocket server is set', async () => {
+      await plugin.initialize(eventBus, dataPipeline, {
+        enabled: true,
+        settings: {
+          ttsVoice: 'onyx',
+          sttLanguage: 'en',
+          personalityEnabled: true
+        }
+      });
+
+      // Create mock WebSocket server
+      const mockWsServer = {
+        setClientConnectedHandler: vi.fn(),
+        setWebRTCSignalingHandler: vi.fn(),
+        sendToClient: vi.fn()
+      };
+
+      // Set WebSocket server
+      plugin.setWebSocketServer(mockWsServer as any, eventBus);
+
+      // Verify that WebRTC signaling handler was registered
+      expect(mockWsServer.setWebRTCSignalingHandler).toHaveBeenCalledTimes(1);
+      expect(mockWsServer.setWebRTCSignalingHandler).toHaveBeenCalledWith(
+        expect.any(Function)
+      );
+    });
+
+    it('should register client connected handler when WebSocket server is set', async () => {
+      await plugin.initialize(eventBus, dataPipeline, {
+        enabled: true,
+        settings: {
+          ttsVoice: 'onyx',
+          sttLanguage: 'en',
+          personalityEnabled: true
+        }
+      });
+
+      // Create mock WebSocket server
+      const mockWsServer = {
+        setClientConnectedHandler: vi.fn(),
+        setWebRTCSignalingHandler: vi.fn(),
+        sendToClient: vi.fn()
+      };
+
+      // Set WebSocket server
+      plugin.setWebSocketServer(mockWsServer as any, eventBus);
+
+      // Verify that client connected handler was registered
+      expect(mockWsServer.setClientConnectedHandler).toHaveBeenCalledTimes(1);
+      expect(mockWsServer.setClientConnectedHandler).toHaveBeenCalledWith(
+        expect.any(Function)
+      );
+    });
+
+    it('should initialize WebRTC components when WebSocket server is set', async () => {
+      await plugin.initialize(eventBus, dataPipeline, {
+        enabled: true,
+        settings: {
+          ttsVoice: 'onyx',
+          sttLanguage: 'en',
+          personalityEnabled: true
+        }
+      });
+
+      // Create mock WebSocket server
+      const mockWsServer = {
+        setClientConnectedHandler: vi.fn(),
+        setWebRTCSignalingHandler: vi.fn(),
+        sendToClient: vi.fn()
+      };
+
+      // Set WebSocket server with EventBus
+      plugin.setWebSocketServer(mockWsServer as any, eventBus);
+
+      // Verify WebRTC components initialized (both handlers registered)
+      expect(mockWsServer.setWebRTCSignalingHandler).toHaveBeenCalled();
+      expect(mockWsServer.setClientConnectedHandler).toHaveBeenCalled();
+    });
+  });
+
   describe('Error Handling', () => {
     beforeEach(async () => {
       await plugin.initialize(eventBus, dataPipeline, {
