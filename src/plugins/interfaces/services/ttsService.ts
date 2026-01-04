@@ -141,9 +141,9 @@ export class TTSService {
         };
       }
 
-      // Stream audio in chunks
-      const audioBuffer = response.body as any;
-      logger.info(`Streaming audio chunks for ${clientId}`);
+      // Convert response stream to buffer
+      const audioBuffer = Buffer.from(await response.arrayBuffer());
+      logger.info(`Streaming audio chunks for ${clientId}: ${audioBuffer.length} bytes total`);
       const audioBytes = await this.streamAudioChunks(audioBuffer, responseId, clientId, abortSignal);
       logger.info(`Streamed ${audioBytes} bytes of audio for ${clientId}`);
 
