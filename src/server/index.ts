@@ -354,8 +354,26 @@ class PACEServer {
       await this.wsServer.start();
       ui.displayInitStep('WebSocket server started', 'success');
 
-      // Initialize voice plugin WebRTC components (if voice plugin exists)
+      // Initialize and start voice plugin (if voice plugin exists)
       if (this.voicePlugin) {
+        ui.displayInitStep('Initializing voice interface plugin', 'start');
+
+        // Initialize plugin with proper config (dataPipeline not needed for voice plugin)
+        await this.voicePlugin.initialize(this.eventBus, null as any, {
+          enabled: config.enableVoice !== false,
+          settings: {
+            ttsVoice: config.voiceTTSVoice || 'onyx',
+            sttLanguage: config.voiceSTTLanguage || 'en',
+            personalityEnabled: true,
+            openaiApiKey: config.openaiApiKey
+          }
+        });
+
+        // Start the plugin
+        await this.voicePlugin.start();
+        logger.info('Voice interface plugin started');
+
+        // Initialize WebRTC components
         ui.displayInitStep('Initializing WebRTC TTS components', 'start');
         this.voicePlugin.setWebSocketServer(this.wsServer, this.eventBus);
         ui.displayInitStep('WebRTC TTS components initialized', 'success');
