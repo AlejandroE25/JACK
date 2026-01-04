@@ -9,7 +9,15 @@ echo.
 
 cd C:\proPACE
 
-echo [1/6] Clearing old logs...
+echo [1/7] Stopping proPACE service...
+nssm stop proPACE
+if %errorlevel% neq 0 (
+    echo WARNING: Service stop failed or service not running
+)
+timeout /t 2 /nobreak >nul
+echo.
+
+echo [2/7] Clearing old logs...
 if exist "logs\service-stdout.log" (
     del /f /q "logs\service-stdout.log"
     echo Old log file deleted
@@ -18,7 +26,7 @@ if exist "logs\service-stdout.log" (
 )
 echo.
 
-echo [2/6] Pulling latest code from GitHub...
+echo [3/7] Pulling latest code from GitHub...
 git pull
 if %errorlevel% neq 0 (
     echo ERROR: Git pull failed
@@ -27,7 +35,7 @@ if %errorlevel% neq 0 (
 )
 echo.
 
-echo [3/6] Installing dependencies...
+echo [4/7] Installing dependencies...
 call npm install
 if %errorlevel% neq 0 (
     echo ERROR: npm install failed
@@ -36,7 +44,7 @@ if %errorlevel% neq 0 (
 )
 echo.
 
-echo [4/6] Building TypeScript...
+echo [5/7] Building TypeScript...
 call npm run build
 if %errorlevel% neq 0 (
     echo ERROR: Build failed
@@ -45,8 +53,8 @@ if %errorlevel% neq 0 (
 )
 echo.
 
-echo [5/6] Restarting proPACE service...
-nssm restart proPACE
+echo [6/7] Starting proPACE service...
+nssm start proPACE
 if %errorlevel% neq 0 (
     echo ERROR: Service restart failed
     pause
@@ -54,7 +62,7 @@ if %errorlevel% neq 0 (
 )
 echo.
 
-echo [6/6] Waiting for service to start...
+echo [7/7] Waiting for service to start...
 timeout /t 3 /nobreak >nul
 echo.
 
