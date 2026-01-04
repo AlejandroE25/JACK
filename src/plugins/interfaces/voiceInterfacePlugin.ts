@@ -227,6 +227,7 @@ export class VoiceInterfacePlugin extends BasePlugin {
       canHandle: () => true,
       priority: 1
     });
+    logger.info('Voice plugin subscribed to RESPONSE_GENERATED events');
 
     // Subscribe to USER_MESSAGE events for interruption detection
     eventBus.subscribe([EventType.USER_MESSAGE], {
@@ -235,12 +236,14 @@ export class VoiceInterfacePlugin extends BasePlugin {
       canHandle: () => true,
       priority: 1
     });
+    logger.info('Voice plugin subscribed to USER_MESSAGE events');
   }
 
   /**
    * Handle RESPONSE_GENERATED event - trigger TTS
    */
   private async handleResponseGenerated(event: Event): Promise<void> {
+    logger.info('Voice plugin received RESPONSE_GENERATED event', { clientId: event.payload.clientId });
     try {
       const { clientId, response } = event.payload;
 
