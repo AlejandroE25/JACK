@@ -10,6 +10,7 @@ class AudioPlayer {
     this.audioQueue = [];
     this.nextStartTime = 0;
     this.currentSourceNodes = [];
+    this.pendingChunks = []; // Buffer for MP3 chunks until TTS_END
 
     console.log('[AudioPlayer] Initialized');
   }
@@ -61,24 +62,21 @@ class AudioPlayer {
         console.log('[AudioPlayer] Received marker:', marker);
 
         if (marker === 'TTS_END') {
+          // Decode and play all buffered chunks
+          await this._decodeAndPlayBufferedChunks();
           await this._onPlaybackComplete();
           return;
         } else if (marker === 'TTS_ABORT') {
+          this.pendingChunks = []; // Clear buffer
           await this.stop();
           return;
         }
       }
 
-      // Decode MP3 chunk
-      const audioBuffer = await this._decodeMP3Chunk(mp3ArrayBuffer);
-
-      if (!audioBuffer) {
-        console.warn('[AudioPlayer] Failed to decode chunk, skipping');
-        return;
-      }
-
-      // Schedule buffer for playback
-      this._scheduleBuffer(audioBuffer);
+      // Buffer the chunk instead of decoding immediately
+      // MP3 chunks can't be decoded individually - need the full stream
+      this.pendingChunks.push(mp3ArrayBuffer);
+      console.log(`[AudioPlayer] Buffered chunk ${this.pendingChunks.length} (${mp3ArrayBuffer.byteLength} bytes)`);
 
     } catch (error) {
       console.error('[AudioPlayer] Error playing chunk:', error);
@@ -102,6 +100,44 @@ class AudioPlayer {
    */
   _getMarkerType(data) {
     return new TextDecoder().decode(data);
+  }
+
+  /**
+   * Decode and play all buffered MP3 chunks
+   */
+  async _decodeAndPlayBufferedChunks() {
+    if (this.pendingChunks.length === 0) {
+      console.log('[AudioPlayer] No chunks to decode');
+      return;
+    }
+
+    try {
+      // Concatenate all chunks into a single ArrayBuffer
+      const totalLength = this.pendingChunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
+      const completeMP3 = new Uint8Array(totalLength);
+      let offset = 0;
+
+      for (const chunk of this.pendingChunks) {
+        completeMP3.set(new Uint8Array(chunk), offset);
+        offset += chunk.byteLength;
+      }
+
+      console.log(`[AudioPlayer] Decoding complete MP3 (${totalLength} bytes from ${this.pendingChunks.length} chunks)`);
+
+      // Clear buffer
+      this.pendingChunks = [];
+
+      // Decode the complete MP3
+      const audioBuffer = await this.audioContext.decodeAudioData(completeMP3.buffer);
+      console.log(`[AudioPlayer] Decoded ${audioBuffer.duration.toFixed(2)}s of audio`);
+
+      // Play the decoded audio
+      this._scheduleBuffer(audioBuffer);
+
+    } catch (error) {
+      console.error('[AudioPlayer] Failed to decode buffered MP3:', error);
+      this.pendingChunks = []; // Clear buffer on error
+    }
   }
 
   /**
