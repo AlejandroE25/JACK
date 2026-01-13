@@ -41,9 +41,9 @@ class AudioPlayer {
       this.waveformCanvas = document.getElementById('waveform-canvas');
       if (this.waveformCanvas) {
         this.waveformCtx = this.waveformCanvas.getContext('2d');
-        // Set canvas resolution
-        this.waveformCanvas.width = 400;
-        this.waveformCanvas.height = 80;
+        // Set canvas resolution (square for circular visualization)
+        this.waveformCanvas.width = 300;
+        this.waveformCanvas.height = 300;
       }
 
       // Resume context if suspended (browser autoplay policy)
@@ -295,7 +295,7 @@ class AudioPlayer {
   }
 
   /**
-   * Start waveform visualization
+   * Start circular waveform visualization around logo
    */
   startWaveformVisualization() {
     if (!this.waveformCanvas || !this.analyser) return;
@@ -315,34 +315,49 @@ class AudioPlayer {
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Calculate bar width
-      const barCount = 32; // Show 32 bars
-      const barWidth = canvas.width / barCount;
-      const barGap = 2;
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const barCount = 64; // Number of bars around the circle
+      const baseRadius = 80; // Inner radius
+      const maxBarLength = 40; // Maximum bar extension
 
-      // Draw frequency bars
+      // Draw circular waveform
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+
       for (let i = 0; i < barCount; i++) {
+        // Calculate angle for this bar (full circle = 2π radians)
+        const angle = (i / barCount) * Math.PI * 2;
+
         // Sample from frequency data
         const dataIndex = Math.floor(i * (bufferLength / barCount));
         const value = dataArray[dataIndex];
 
-        // Normalize height (0-255 → 0-canvas.height)
-        const barHeight = (value / 255) * canvas.height * 0.8;
-        const x = i * barWidth;
-        const y = (canvas.height - barHeight) / 2;
+        // Normalize bar length (0-255 → 0-maxBarLength)
+        const barLength = (value / 255) * maxBarLength;
 
-        // PACE gold color with gradient
-        const gradient = ctx.createLinearGradient(0, y, 0, y + barHeight);
-        gradient.addColorStop(0, 'rgba(252, 190, 36, 0.8)');
-        gradient.addColorStop(1, 'rgba(252, 190, 36, 0.3)');
+        // Calculate start and end points of the bar
+        const startX = centerX + Math.cos(angle) * baseRadius;
+        const startY = centerY + Math.sin(angle) * baseRadius;
+        const endX = centerX + Math.cos(angle) * (baseRadius + barLength);
+        const endY = centerY + Math.sin(angle) * (baseRadius + barLength);
 
-        ctx.fillStyle = gradient;
-        ctx.fillRect(x + barGap / 2, y, barWidth - barGap, barHeight);
+        // Create gradient for this bar (inner to outer)
+        const gradient = ctx.createLinearGradient(startX, startY, endX, endY);
+        gradient.addColorStop(0, 'rgba(252, 190, 36, 0.4)');
+        gradient.addColorStop(1, 'rgba(252, 190, 36, 0.9)');
+
+        // Draw the bar
+        ctx.strokeStyle = gradient;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
       }
     };
 
     draw();
-    console.log('[AudioPlayer] Waveform visualization started');
+    console.log('[AudioPlayer] Circular waveform visualization started');
   }
 
   /**

@@ -600,19 +600,26 @@ body {
     }
 }
 
-/* WebRTC Voice Interface - Waveform Visualizer */
+/* WebRTC Voice Interface - Circular Waveform Visualizer */
 #waveform-canvas {
     position: absolute;
-    bottom: -60px;
+    top: 50%;
     left: 50%;
-    transform: translateX(-50%);
-    width: 400px;
-    height: 80px;
+    transform: translate(-50%, -50%);
+    width: 300px;
+    height: 300px;
     opacity: 0;
     transition: opacity 0.3s ease;
     pointer-events: none;
+    z-index: -1; /* Behind the logo text */
 }
 
 #pace_logo.speaking #waveform-canvas {
     opacity: 1;
+}
+
+/* Ensure logo text stays on top */
+#pace_logo #title {
+    position: relative;
+    z-index: 1;
 }
