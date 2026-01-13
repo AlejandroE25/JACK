@@ -162,8 +162,9 @@ export class AudioTrackProcessor extends EventEmitter {
       `[AudioTrackProcessor] TTS_COMPLETED received for ${clientId}: ${totalBytes} bytes (response ${responseId})`
     );
 
-    // Flush any remaining queued chunks
-    await this.processQueue(clientId);
+    // Wait for queue to fully drain before sending end marker
+    // This ensures TTS_END doesn't get stuck in queue for long responses
+    await this.waitForQueueToDrain(clientId);
 
     // Send end marker
     try {
@@ -221,6 +222,38 @@ export class AudioTrackProcessor extends EventEmitter {
    */
   async processQueue(clientId: string): Promise<void> {
     await this.peerManager.processQueue(clientId);
+  }
+
+  /**
+   * Wait for audio queue to fully drain before proceeding
+   * This prevents TTS_END marker from getting stuck in queue for long responses
+   */
+  private async waitForQueueToDrain(clientId: string, maxWaitMs: number = 10000): Promise<void> {
+    const startTime = Date.now();
+    const checkInterval = 50; // Check every 50ms
+
+    while (Date.now() - startTime < maxWaitMs) {
+      const queueLength = this.peerManager.getQueueLength(clientId);
+
+      if (queueLength === 0) {
+        this.logger.debug(`[AudioTrackProcessor] Queue drained for ${clientId}`);
+        return;
+      }
+
+      this.logger.debug(`[AudioTrackProcessor] Waiting for queue to drain for ${clientId}: ${queueLength} chunks remaining`);
+
+      // Try to process the queue
+      await this.peerManager.processQueue(clientId);
+
+      // Wait before checking again
+      await new Promise(resolve => setTimeout(resolve, checkInterval));
+    }
+
+    // Timeout - log warning but continue
+    const remainingChunks = this.peerManager.getQueueLength(clientId);
+    this.logger.warn(
+      `[AudioTrackProcessor] Timeout waiting for queue to drain for ${clientId}: ${remainingChunks} chunks still queued`
+    );
   }
 
   /**
