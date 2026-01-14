@@ -600,26 +600,5 @@ body {
     }
 }
 
-/* WebRTC Voice Interface - Circular Waveform Visualizer */
-#waveform-canvas {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 350px;
-    height: 350px;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    pointer-events: none;
-    z-index: 0; /* Above button background but below text */
-}
-
-#pace_logo.speaking #waveform-canvas {
-    opacity: 1;
-}
-
-/* Ensure logo text stays on top */
-#pace_logo #title {
-    position: relative;
-    z-index: 2;
-}
+/* WebRTC Voice Interface - Audio-reactive background blobs */
+/* Blobs are modulated by audio player JavaScript in real-time */

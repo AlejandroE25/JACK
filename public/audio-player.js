@@ -12,10 +12,8 @@ class AudioPlayer {
     this.currentSourceNodes = [];
     this.pendingChunks = []; // Buffer for MP3 chunks until TTS_END
 
-    // Waveform visualizer
+    // Audio-reactive blob visualization
     this.analyser = null;
-    this.waveformCanvas = null;
-    this.waveformCtx = null;
     this.animationId = null;
 
     console.log('[AudioPlayer] Initialized');
@@ -31,27 +29,18 @@ class AudioPlayer {
         sampleRate: 48000
       });
 
-      // Create analyser for waveform visualization
+      // Create analyser for audio-reactive blob visualization
       this.analyser = this.audioContext.createAnalyser();
-      this.analyser.fftSize = 128; // Small FFT for 64 frequency bars
-      this.analyser.smoothingTimeConstant = 0.7; // Smooth animation
+      this.analyser.fftSize = 256; // FFT size for frequency analysis
+      this.analyser.smoothingTimeConstant = 0.8; // Smooth animation
       this.analyser.connect(this.audioContext.destination);
-
-      // Setup canvas for waveform
-      this.waveformCanvas = document.getElementById('waveform-canvas');
-      if (this.waveformCanvas) {
-        this.waveformCtx = this.waveformCanvas.getContext('2d');
-        // Set canvas resolution (350x350 to surround 250px button)
-        this.waveformCanvas.width = 350;
-        this.waveformCanvas.height = 350;
-      }
 
       // Resume context if suspended (browser autoplay policy)
       if (this.audioContext.state === 'suspended') {
         console.log('[AudioPlayer] AudioContext suspended, will resume on user interaction');
       }
 
-      console.log('[AudioPlayer] AudioContext created with waveform visualizer');
+      console.log('[AudioPlayer] AudioContext created with audio-reactive visualization');
       return true;
     } catch (error) {
       console.error('[AudioPlayer] Failed to initialize AudioContext:', error);
@@ -295,13 +284,22 @@ class AudioPlayer {
   }
 
   /**
-   * Start circular waveform visualization around logo
+   * Start audio-reactive background blob visualization
    */
   startWaveformVisualization() {
-    if (!this.waveformCanvas || !this.analyser) return;
+    if (!this.analyser) return;
 
     const bufferLength = this.analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
+
+    // Get references to background blobs
+    const blob1 = document.getElementById('blob1');
+    const blob2 = document.getElementById('blob2');
+
+    if (!blob1 || !blob2) {
+      console.warn('[AudioPlayer] Background blobs not found');
+      return;
+    }
 
     const draw = () => {
       this.animationId = requestAnimationFrame(draw);
@@ -309,59 +307,37 @@ class AudioPlayer {
       // Get frequency data
       this.analyser.getByteFrequencyData(dataArray);
 
-      const ctx = this.waveformCtx;
-      const canvas = this.waveformCanvas;
+      // Calculate average frequency intensity
+      const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
+      const intensity = average / 255; // Normalize to 0-1
 
-      // Clear canvas
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Calculate low and high frequency components
+      const lowFreq = dataArray.slice(0, bufferLength / 3).reduce((sum, v) => sum + v, 0) / (bufferLength / 3) / 255;
+      const highFreq = dataArray.slice(bufferLength * 2 / 3).reduce((sum, v) => sum + v, 0) / (bufferLength / 3) / 255;
 
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
-      const barCount = 64; // Number of bars around the circle
-      const baseRadius = 125; // Button radius (250px diameter / 2)
-      const maxBarLength = 50; // Maximum bar extension outward
+      // Modulate blob1 with low frequencies (bass)
+      const blob1Scale = 1 + (lowFreq * 0.5); // Scale 1.0 - 1.5x
+      const blob1Blur = 100 + (lowFreq * 50); // Blur 100-150px
+      const blob1Opacity = 0.6 + (lowFreq * 0.4); // Opacity 0.6-1.0
 
-      // Draw circular waveform
-      ctx.lineWidth = 3;
-      ctx.lineCap = 'round';
+      blob1.style.transform = `translate(-50%, -50%) rotate(var(--rotation, 0deg)) scale(${blob1Scale})`;
+      blob1.style.filter = `blur(${blob1Blur}px) opacity(${blob1Opacity})`;
 
-      for (let i = 0; i < barCount; i++) {
-        // Calculate angle for this bar (full circle = 2π radians)
-        const angle = (i / barCount) * Math.PI * 2;
+      // Modulate blob2 with high frequencies (treble)
+      const blob2Scale = 1 + (highFreq * 0.5); // Scale 1.0 - 1.5x
+      const blob2Blur = 100 + (highFreq * 50); // Blur 100-150px
+      const blob2Opacity = 0.6 + (highFreq * 0.4); // Opacity 0.6-1.0
 
-        // Sample from frequency data
-        const dataIndex = Math.floor(i * (bufferLength / barCount));
-        const value = dataArray[dataIndex];
-
-        // Normalize bar length (0-255 → 0-maxBarLength)
-        const barLength = (value / 255) * maxBarLength;
-
-        // Calculate start and end points of the bar
-        const startX = centerX + Math.cos(angle) * baseRadius;
-        const startY = centerY + Math.sin(angle) * baseRadius;
-        const endX = centerX + Math.cos(angle) * (baseRadius + barLength);
-        const endY = centerY + Math.sin(angle) * (baseRadius + barLength);
-
-        // Create gradient for this bar (inner to outer)
-        const gradient = ctx.createLinearGradient(startX, startY, endX, endY);
-        gradient.addColorStop(0, 'rgba(252, 190, 36, 0.4)');
-        gradient.addColorStop(1, 'rgba(252, 190, 36, 0.9)');
-
-        // Draw the bar
-        ctx.strokeStyle = gradient;
-        ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(endX, endY);
-        ctx.stroke();
-      }
+      blob2.style.transform = `translate(-50%, -50%) rotate(calc(90deg + var(--rotation, 0deg))) scale(${blob2Scale})`;
+      blob2.style.filter = `blur(${blob2Blur}px) opacity(${blob2Opacity})`;
     };
 
     draw();
-    console.log('[AudioPlayer] Circular waveform visualization started');
+    console.log('[AudioPlayer] Audio-reactive background blob visualization started');
   }
 
   /**
-   * Stop waveform visualization
+   * Stop blob visualization and reset to default state
    */
   stopWaveformVisualization() {
     if (this.animationId) {
@@ -369,12 +345,21 @@ class AudioPlayer {
       this.animationId = null;
     }
 
-    // Clear canvas
-    if (this.waveformCtx && this.waveformCanvas) {
-      this.waveformCtx.clearRect(0, 0, this.waveformCanvas.width, this.waveformCanvas.height);
+    // Reset blobs to default appearance
+    const blob1 = document.getElementById('blob1');
+    const blob2 = document.getElementById('blob2');
+
+    if (blob1) {
+      blob1.style.transform = '';
+      blob1.style.filter = '';
     }
 
-    console.log('[AudioPlayer] Waveform visualization stopped');
+    if (blob2) {
+      blob2.style.transform = '';
+      blob2.style.filter = '';
+    }
+
+    console.log('[AudioPlayer] Blob visualization stopped');
   }
 
   /**
