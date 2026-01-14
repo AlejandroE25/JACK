@@ -125,7 +125,6 @@ export interface PACEConfig {
   host: string;
   nodeEnv: string;
   anthropicApiKey: string;
-  openaiApiKey?: string;
   openWeatherMapApiKey: string;
   wolframAlphaAppId: string;
   googleSearch: {
@@ -157,7 +156,8 @@ export interface PACEConfig {
 
   // Voice Interface
   enableVoice?: boolean;
-  voiceTTSVoice?: string;
+  piperPath?: string;
+  piperModelPath?: string;
   voiceSTTLanguage?: string;
   voiceTTSCacheSize?: number;
   voiceTTSCacheTTL?: number;

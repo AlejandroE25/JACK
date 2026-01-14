@@ -13,7 +13,6 @@ export function loadConfig(): PACEConfig {
     host: process.env.HOST || '0.0.0.0',
     nodeEnv: process.env.NODE_ENV || 'development',
     anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
-    openaiApiKey: process.env.OPENAI_API_KEY,
     openWeatherMapApiKey: process.env.OPENWEATHERMAP_API_KEY || '',
     wolframAlphaAppId: process.env.WOLFRAM_ALPHA_APP_ID || '',
     googleSearch: {
@@ -47,7 +46,8 @@ export function loadConfig(): PACEConfig {
 
     // Voice Interface Configuration
     enableVoice: process.env.ENABLE_VOICE === 'true',
-    voiceTTSVoice: process.env.VOICE_TTS_VOICE || 'onyx',
+    piperPath: process.env.PIPER_PATH || '/usr/local/bin/piper',
+    piperModelPath: process.env.PIPER_MODEL_PATH || '/usr/local/share/piper/voices/en_US-lessac-medium.onnx',
     voiceSTTLanguage: process.env.VOICE_STT_LANGUAGE || 'en',
     voiceTTSCacheSize: parseInt(process.env.VOICE_TTS_CACHE_SIZE || '100', 10),
     voiceTTSCacheTTL: parseInt(process.env.VOICE_TTS_CACHE_TTL || '3600000', 10),

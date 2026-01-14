@@ -17,7 +17,7 @@ import { PluginMetadata, PluginCapability, PluginConfig } from '../types.js';
 import { EventBus } from '../../events/eventBus.js';
 import { DataPipeline } from '../../data/dataPipeline.js';
 import { EventType, Event } from '../../events/types.js';
-import { TTSService } from './services/ttsService.js';
+import { PiperTTSService } from './services/piperTtsService.js';
 import { randomUUID } from 'crypto';
 // import { STTService } from './services/sttService.js'; // TODO: Re-enable for STT
 // import { PersonalityManager } from './services/personalityManager.js'; // TODO
@@ -33,7 +33,8 @@ import { logger } from '../../utils/logger.js';
  * Voice plugin configuration
  */
 export interface VoiceConfig {
-  ttsVoice: string;        // OpenAI TTS voice (e.g., 'onyx')
+  piperPath?: string;      // Path to Piper TTS executable
+  piperModelPath?: string; // Path to Piper voice model (.onnx)
   sttLanguage: string;     // STT language code (e.g., 'en')
   personalityEnabled: boolean;  // Enable dynamic personality switching
 }
@@ -59,7 +60,7 @@ export class VoiceInterfacePlugin extends BasePlugin {
   private logger = logger;
 
   // Internal services
-  private ttsService?: TTSService;
+  private ttsService?: PiperTTSService;
   // private sttService?: STTService; // TODO: Re-enable for STT functionality
   // private personalityManager?: PersonalityManager; // TODO: Implement personality switching
   // private interruptionManager?: InterruptionManager; // TODO: Implement interruption handling
@@ -96,11 +97,6 @@ export class VoiceInterfacePlugin extends BasePlugin {
 
     // Safely access settings
     const settings = config?.settings || {};
-    const apiKey = settings.openaiApiKey || process.env.OPENAI_API_KEY;
-
-    if (!apiKey) {
-      throw new Error('OpenAI API key required for voice interface');
-    }
 
     // Initialize TTS cache
     this.ttsCache = new TTSCache({
@@ -108,12 +104,11 @@ export class VoiceInterfacePlugin extends BasePlugin {
       ttlMs: settings.ttsCacheTTL || 3600000 // 1 hour default
     });
 
-    // Initialize TTS service
-    this.ttsService = new TTSService({
-      apiKey,
-      voice: settings.ttsVoice || 'onyx',
-      model: settings.ttsModel || 'tts-1',
-      eventBus
+    // Initialize Piper TTS service (local, low-latency)
+    this.ttsService = new PiperTTSService({
+      eventBus,
+      piperPath: settings.piperPath || '/usr/local/bin/piper',
+      modelPath: settings.piperModelPath || '/usr/local/share/piper/voices/en_US-lessac-medium.onnx'
     });
 
     // TODO: Initialize STT service for speech-to-text functionality

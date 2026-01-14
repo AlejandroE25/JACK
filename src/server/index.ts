@@ -364,10 +364,10 @@ class PACEServer {
         await this.voicePlugin.initialize(this.eventBus, null as any, {
           enabled: config.enableVoice !== false,
           settings: {
-            ttsVoice: config.voiceTTSVoice || 'onyx',
+            piperPath: config.piperPath,
+            piperModelPath: config.piperModelPath,
             sttLanguage: config.voiceSTTLanguage || 'en',
-            personalityEnabled: true,
-            openaiApiKey: config.openaiApiKey
+            personalityEnabled: true
           }
         });
 
