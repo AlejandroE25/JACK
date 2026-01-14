@@ -18,21 +18,19 @@ Invoke-WebRequest -Uri $piperUrl -OutFile "$env:TEMP\piper.zip"
 # Extract
 Expand-Archive -Path "$env:TEMP\piper.zip" -DestinationPath "C:\Program Files\Piper" -Force
 
-# Add to PATH (requires admin)
-[Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\Program Files\Piper", [EnvironmentVariableTarget]::Machine)
-
 # Download voice model
+# Note: The zip extracts to a nested piper folder, so exe is at C:\Program Files\Piper\piper\piper.exe
 $modelUrl = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx"
 $modelJsonUrl = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json"
 
 Invoke-WebRequest -Uri $modelUrl -OutFile "C:\Program Files\Piper\voices\en_US-lessac-medium.onnx"
 Invoke-WebRequest -Uri $modelJsonUrl -OutFile "C:\Program Files\Piper\voices\en_US-lessac-medium.onnx.json"
 
-# Verify installation (restart PowerShell after PATH update)
-piper --version
+# Test Piper (using full path - note the nested piper folder)
+"Hello, I am PACE, your personal AI assistant." | & "C:\Program Files\Piper\piper\piper.exe" --model "C:\Program Files\Piper\voices\en_US-lessac-medium.onnx" --output-file test.wav
 
-# Test with a sentence
-"Hello, I am PACE, your personal AI assistant." | piper --model "C:\Program Files\Piper\voices\en_US-lessac-medium.onnx" --output-file test.wav
+# Verify audio file was created
+Test-Path .\test.wav
 ```
 
 ### Ubuntu/Debian
@@ -137,17 +135,15 @@ Full voice catalog: https://rhasspy.github.io/piper-samples/
 
 ## Troubleshooting
 
-### Windows: "piper.exe is not recognized"
+### Windows: "piper.exe not found" or spawn errors
 
 ```powershell
-# Check if Piper is in PATH
-where.exe piper
+# Verify Piper executable exists (note the nested piper folder)
+Test-Path "C:\Program Files\Piper\piper\piper.exe"
 
-# If not, add to PATH manually or set in .env:
-# PIPER_PATH="C:\Program Files\Piper\piper.exe"
-
-# Or refresh PATH in current PowerShell session
-$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine")
+# If false, re-extract the zip to the correct location
+# The zip creates a nested structure: Piper\piper\piper.exe
+# PACE uses the full path, so no PATH configuration needed
 ```
 
 ### Windows: "Model file not found"
@@ -236,7 +232,7 @@ npm start
 ```
 
 The configuration will automatically detect Windows and use:
-- Piper path: `C:\Program Files\Piper\piper.exe`
+- Piper path: `C:\Program Files\Piper\piper\piper.exe` (note nested folder)
 - Model path: `C:\Program Files\Piper\voices\en_US-lessac-medium.onnx`
 
 No `.env` changes needed unless you installed Piper in a custom location.

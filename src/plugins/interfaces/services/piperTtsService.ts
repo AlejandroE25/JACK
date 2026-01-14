@@ -66,7 +66,7 @@ export class PiperTTSService {
     this.eventBus = config.eventBus;
     // Default paths based on platform
     const defaultPiperPath = process.platform === 'win32'
-      ? 'C:\\Program Files\\Piper\\piper.exe'
+      ? 'C:\\Program Files\\Piper\\piper\\piper.exe'
       : '/usr/local/bin/piper';
     const defaultModelPath = process.platform === 'win32'
       ? 'C:\\Program Files\\Piper\\voices\\en_US-lessac-medium.onnx'

@@ -46,7 +46,7 @@ export function loadConfig(): PACEConfig {
 
     // Voice Interface Configuration
     enableVoice: process.env.ENABLE_VOICE === 'true',
-    piperPath: process.env.PIPER_PATH || (process.platform === 'win32' ? 'C:\\Program Files\\Piper\\piper.exe' : '/usr/local/bin/piper'),
+    piperPath: process.env.PIPER_PATH || (process.platform === 'win32' ? 'C:\\Program Files\\Piper\\piper\\piper.exe' : '/usr/local/bin/piper'),
     piperModelPath: process.env.PIPER_MODEL_PATH || (process.platform === 'win32' ? 'C:\\Program Files\\Piper\\voices\\en_US-lessac-medium.onnx' : '/usr/local/share/piper/voices/en_US-lessac-medium.onnx'),
     voiceSTTLanguage: process.env.VOICE_STT_LANGUAGE || 'en',
     voiceTTSCacheSize: parseInt(process.env.VOICE_TTS_CACHE_SIZE || '100', 10),
