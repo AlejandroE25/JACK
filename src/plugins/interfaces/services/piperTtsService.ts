@@ -59,7 +59,6 @@ export class PiperTTSService {
   private stats: TTSStatistics;
   private spawnFn: any;
 
-  private readonly CHUNK_SIZE = 16384; // 16KB chunks (same as OpenAI)
   private readonly MAX_INPUT_LENGTH = 4096;
 
   constructor(config: PiperTTSConfig) {
@@ -229,30 +228,15 @@ export class PiperTTSService {
       }
 
       // Collect audio data from stdout
-      piperProcess.stdout?.on('data', async (chunk: Buffer) => {
+      // Buffer the complete WAV file - don't chunk it
+      // WAV files have headers and can't be split mid-stream
+      piperProcess.stdout?.on('data', (chunk: Buffer) => {
         if (processAborted || abortSignal?.aborted) {
           return;
         }
 
         audioBuffer = Buffer.concat([audioBuffer, chunk]);
         totalBytes += chunk.length;
-
-        // Stream in chunks
-        while (audioBuffer.length >= this.CHUNK_SIZE) {
-          const chunkToSend = audioBuffer.subarray(0, this.CHUNK_SIZE);
-          audioBuffer = audioBuffer.subarray(this.CHUNK_SIZE);
-
-          await this.publishChunkEvent(
-            responseId,
-            chunkToSend,
-            totalBytes - audioBuffer.length,
-            totalBytes,
-            clientId
-          );
-
-          // Small delay to prevent overwhelming the event bus
-          await new Promise(r => setTimeout(r, 10));
-        }
       });
 
       // Collect stderr for error messages
@@ -285,12 +269,13 @@ export class PiperTTSService {
           return;
         }
 
-        // Send remaining audio data
+        // Send the complete WAV file as a single chunk
         if (audioBuffer.length > 0) {
+          logger.info(`[PiperTTS] Sending complete WAV file (${audioBuffer.length} bytes) for ${clientId}`);
           await this.publishChunkEvent(
             responseId,
             audioBuffer,
-            totalBytes - audioBuffer.length,
+            0,
             totalBytes,
             clientId
           );
