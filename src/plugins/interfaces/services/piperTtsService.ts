@@ -211,9 +211,9 @@ export class PiperTTSService {
           // NOTE: --sample-rate flag is IGNORED by Piper, always outputs 22050 Hz
         ],
         {
-          stdio: ['pipe', 'pipe', 'pipe'],
-          // On Windows, use shell to properly handle paths with spaces
-          shell: process.platform === 'win32'
+          stdio: ['pipe', 'pipe', 'pipe']
+          // NOTE: Do NOT use shell: true - it breaks paths with spaces on Windows
+          // spawn() handles quoted paths correctly without shell mode
         }
       );
 
