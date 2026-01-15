@@ -6,6 +6,8 @@
 
 import express, { Request, Response } from 'express';
 import { getConfig, updateConfig, deleteConfigKeys } from './configController.js';
+import { spawn, type ChildProcess } from 'child_process';
+import { config } from '../../config/index.js';
 
 export const apiRouter = express.Router();
 
@@ -104,4 +106,90 @@ apiRouter.get('/health', (_req: Request, res: Response) => {
     uptime: process.uptime(),
     timestamp: new Date().toISOString()
   });
+});
+
+/**
+ * GET /api/speech/test
+ * Test Piper TTS - generates and downloads WAV file
+ *
+ * Query params:
+ *   text (optional): Text to synthesize (default: "Hello, this is a test of the Piper text to speech system.")
+ *
+ * Example: http://10.0.0.69:9001/api/speech/test?text=Hello world
+ */
+apiRouter.get('/speech/test', async (req: Request, res: Response) => {
+  const text = (req.query.text as string) || "Hello, this is a test of the Piper text to speech system.";
+
+  console.log(`[TTS Test] Generating audio for: "${text}"`);
+
+  try {
+    // Spawn Piper process
+    const piperProcess: ChildProcess = spawn(
+      config.piperPath || '/usr/local/bin/piper',
+      [
+        '--model', config.piperModelPath || '/usr/local/share/piper/voices/en_US-lessac-medium.onnx',
+        '--output-file', '-',
+        '--sample-rate', '48000'
+      ],
+      {
+        stdio: ['pipe', 'pipe', 'pipe']
+      }
+    );
+
+    const audioChunks: Buffer[] = [];
+    let stderrOutput = '';
+
+    // Collect audio data
+    piperProcess.stdout?.on('data', (chunk: Buffer) => {
+      audioChunks.push(chunk);
+    });
+
+    // Collect stderr
+    piperProcess.stderr?.on('data', (data: Buffer) => {
+      stderrOutput += data.toString();
+    });
+
+    // Handle errors
+    piperProcess.on('error', (error: Error) => {
+      console.error('[TTS Test] Piper process error:', error);
+      res.status(500).json({
+        success: false,
+        error: `Piper process error: ${error.message}`
+      });
+    });
+
+    // Handle completion
+    piperProcess.on('close', (code: number | null) => {
+      if (code !== 0) {
+        console.error(`[TTS Test] Piper exited with code ${code}:`, stderrOutput);
+        res.status(500).json({
+          success: false,
+          error: `Piper exited with code ${code}: ${stderrOutput}`
+        });
+        return;
+      }
+
+      // Concatenate all chunks
+      const audioBuffer = Buffer.concat(audioChunks);
+
+      console.log(`[TTS Test] Generated ${audioBuffer.length} bytes of audio`);
+
+      // Send WAV file as download
+      res.setHeader('Content-Type', 'audio/wav');
+      res.setHeader('Content-Disposition', 'attachment; filename="test.wav"');
+      res.setHeader('Content-Length', audioBuffer.length);
+      res.send(audioBuffer);
+    });
+
+    // Write text to stdin
+    piperProcess.stdin?.write(text);
+    piperProcess.stdin?.end();
+
+  } catch (error: any) {
+    console.error('[TTS Test] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Unknown error'
+    });
+  }
 });

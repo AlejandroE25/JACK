@@ -24,10 +24,13 @@ class AudioPlayer {
    */
   async initialize() {
     try {
-      // Create AudioContext at 22050 Hz to match Piper's native output
-      // This avoids resampling artifacts from Piper trying to upsample to 48kHz
-      this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
-        sampleRate: 22050
+      // Create AudioContext without forcing sample rate
+      // Let browser choose, then check what we got
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+      console.log('[AudioPlayer] AudioContext created:', {
+        sampleRate: this.audioContext.sampleRate,
+        state: this.audioContext.state
       });
 
       // Create analyser for audio-reactive blob visualization
