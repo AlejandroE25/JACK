@@ -201,14 +201,14 @@ export class PiperTTSService {
       let processAborted = false;
 
       // Spawn Piper process
-      // Output WAV format at 48000 Hz to match browser's default AudioContext
-      // This uses Piper's built-in resampling which is higher quality than browser resampling
+      // Output WAV format at native 22050 Hz (Piper ignores --sample-rate flag)
+      // Browser AudioContext is configured to match this rate
       const piperProcess: ChildProcess = this.spawnFn(
         this.piperPath,
         [
           '--model', this.modelPath,
-          '--output-file', '-',
-          '--sample-rate', '48000'  // Match browser default
+          '--output-file', '-'
+          // NOTE: --sample-rate flag is IGNORED by Piper, always outputs 22050 Hz
         ],
         {
           stdio: ['pipe', 'pipe', 'pipe']

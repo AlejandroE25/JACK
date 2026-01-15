@@ -124,12 +124,12 @@ apiRouter.get('/speech/test', async (req: Request, res: Response) => {
 
   try {
     // Spawn Piper process
+    // NOTE: Piper ignores --sample-rate flag and always outputs at 22050 Hz
     const piperProcess: ChildProcess = spawn(
       config.piperPath || '/usr/local/bin/piper',
       [
         '--model', config.piperModelPath || '/usr/local/share/piper/voices/en_US-lessac-medium.onnx',
-        '--output-file', '-',
-        '--sample-rate', '48000'
+        '--output-file', '-'
       ],
       {
         stdio: ['pipe', 'pipe', 'pipe']

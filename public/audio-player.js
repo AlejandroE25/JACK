@@ -24,12 +24,16 @@ class AudioPlayer {
    */
   async initialize() {
     try {
-      // Create AudioContext without forcing sample rate
-      // Let browser choose, then check what we got
-      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      // CRITICAL: Force AudioContext to 22050 Hz to match Piper's output
+      // Piper ignores --sample-rate flag and always outputs at 22050 Hz
+      // Browser default is 48000 Hz which causes 2.18x speed (garbled audio)
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+        sampleRate: 22050
+      });
 
-      console.log('[AudioPlayer] AudioContext created:', {
-        sampleRate: this.audioContext.sampleRate,
+      console.log('[AudioPlayer] AudioContext created with forced 22050 Hz:', {
+        requestedRate: 22050,
+        actualRate: this.audioContext.sampleRate,
         state: this.audioContext.state
       });
 
