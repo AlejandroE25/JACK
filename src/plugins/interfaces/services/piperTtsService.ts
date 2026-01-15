@@ -289,9 +289,9 @@ export class PiperTTSService {
       });
 
       // Write text to stdin with explicit UTF-8 encoding
-      // Windows Piper may have encoding issues - ensure UTF-8
+      // Add newline to match PowerShell pipe behavior
       if (piperProcess.stdin) {
-        piperProcess.stdin.write(text, 'utf8');
+        piperProcess.stdin.write(text + '\n', 'utf8');
         piperProcess.stdin.end();
       } else {
         reject(new Error('Failed to write to Piper stdin - stream not available'));

@@ -184,8 +184,9 @@ apiRouter.get('/speech/test', async (req: Request, res: Response) => {
     });
 
     // Write text to stdin with explicit UTF-8 encoding
+    // Add newline to match PowerShell pipe behavior
     if (piperProcess.stdin) {
-      piperProcess.stdin.write(text, 'utf8');
+      piperProcess.stdin.write(text + '\n', 'utf8');
       piperProcess.stdin.end();
     } else {
       res.status(500).json({
