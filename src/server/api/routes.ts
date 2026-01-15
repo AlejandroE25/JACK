@@ -12,6 +12,44 @@ import { config } from '../../config/index.js';
 export const apiRouter = express.Router();
 
 /**
+ * Create WAV file header for raw PCM data
+ * PCM format: 16-bit signed integer, mono, 22050 Hz
+ */
+function createWavHeader(pcmData: Buffer): Buffer {
+  const sampleRate = 22050;
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+  const blockAlign = numChannels * (bitsPerSample / 8);
+  const dataSize = pcmData.length;
+  const fileSize = 44 + dataSize;
+
+  const header = Buffer.alloc(44);
+
+  // RIFF chunk descriptor
+  header.write('RIFF', 0);
+  header.writeUInt32LE(fileSize - 8, 4);
+  header.write('WAVE', 8);
+
+  // fmt sub-chunk
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16); // Subchunk1Size (16 for PCM)
+  header.writeUInt16LE(1, 20);  // AudioFormat (1 = PCM)
+  header.writeUInt16LE(numChannels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+
+  // data sub-chunk
+  header.write('data', 36);
+  header.writeUInt32LE(dataSize, 40);
+
+  // Combine header + PCM data
+  return Buffer.concat([header, pcmData]);
+}
+
+/**
  * GET /api/config
  * Get current environment configuration (with masked sensitive values)
  */
@@ -124,12 +162,12 @@ apiRouter.get('/speech/test', async (req: Request, res: Response) => {
 
   try {
     // Spawn Piper process
-    // NOTE: Piper ignores --sample-rate flag and always outputs at 22050 Hz
+    // Use --output-raw for clean PCM output (no WAV header contamination)
     const piperProcess: ChildProcess = spawn(
       config.piperPath || '/usr/local/bin/piper',
       [
         '--model', config.piperModelPath || '/usr/local/share/piper/voices/en_US-lessac-medium.onnx',
-        '--output-file', '-'
+        '--output-raw'
       ],
       {
         stdio: ['pipe', 'pipe', 'pipe']
@@ -171,16 +209,19 @@ apiRouter.get('/speech/test', async (req: Request, res: Response) => {
         return;
       }
 
-      // Concatenate all chunks
-      const audioBuffer = Buffer.concat(audioChunks);
+      // Concatenate all PCM chunks
+      const pcmBuffer = Buffer.concat(audioChunks);
 
-      console.log(`[TTS Test] Generated ${audioBuffer.length} bytes of audio`);
+      // Create WAV header for PCM data (16-bit, mono, 22050 Hz)
+      const wavBuffer = createWavHeader(pcmBuffer);
+
+      console.log(`[TTS Test] Generated ${wavBuffer.length} bytes of audio (${pcmBuffer.length} PCM bytes)`);
 
       // Send WAV file as download
       res.setHeader('Content-Type', 'audio/wav');
       res.setHeader('Content-Disposition', 'attachment; filename="test.wav"');
-      res.setHeader('Content-Length', audioBuffer.length);
-      res.send(audioBuffer);
+      res.setHeader('Content-Length', wavBuffer.length);
+      res.send(wavBuffer);
     });
 
     // Write text to stdin with explicit UTF-8 encoding

@@ -201,14 +201,14 @@ export class PiperTTSService {
       let processAborted = false;
 
       // Spawn Piper process
-      // Output WAV format at native 22050 Hz (Piper ignores --sample-rate flag)
-      // Browser AudioContext is configured to match this rate
+      // Use --output-raw for clean PCM output to stdout (no WAV header)
+      // WAV header contamination was causing noise when using --output-file -
       const piperProcess: ChildProcess = this.spawnFn(
         this.piperPath,
         [
           '--model', this.modelPath,
-          '--output-file', '-'
-          // NOTE: --sample-rate flag is IGNORED by Piper, always outputs 22050 Hz
+          '--output-raw'
+          // Outputs raw 16-bit PCM at 22050 Hz to stdout
         ],
         {
           stdio: ['pipe', 'pipe', 'pipe']
@@ -273,14 +273,15 @@ export class PiperTTSService {
           return;
         }
 
-        // Send the complete WAV file as a single chunk
+        // Convert raw PCM to WAV format and send
         if (audioBuffer.length > 0) {
-          logger.info(`[PiperTTS] Sending complete WAV file (${audioBuffer.length} bytes) for ${clientId}`);
+          const wavBuffer = this.createWavHeader(audioBuffer);
+          logger.info(`[PiperTTS] Sending WAV file (${wavBuffer.length} bytes, ${audioBuffer.length} PCM bytes) for ${clientId}`);
           await this.publishChunkEvent(
             responseId,
-            audioBuffer,
+            wavBuffer,
             0,
-            totalBytes,
+            wavBuffer.length,
             clientId
           );
         }
@@ -373,6 +374,44 @@ export class PiperTTSService {
         timestamp: new Date()
       }
     });
+  }
+
+  /**
+   * Create WAV file header for raw PCM data
+   * PCM format: 16-bit signed integer, mono, 22050 Hz
+   */
+  private createWavHeader(pcmData: Buffer): Buffer {
+    const sampleRate = 22050;
+    const numChannels = 1;
+    const bitsPerSample = 16;
+    const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+    const blockAlign = numChannels * (bitsPerSample / 8);
+    const dataSize = pcmData.length;
+    const fileSize = 44 + dataSize;
+
+    const header = Buffer.alloc(44);
+
+    // RIFF chunk descriptor
+    header.write('RIFF', 0);
+    header.writeUInt32LE(fileSize - 8, 4);
+    header.write('WAVE', 8);
+
+    // fmt sub-chunk
+    header.write('fmt ', 12);
+    header.writeUInt32LE(16, 16); // Subchunk1Size (16 for PCM)
+    header.writeUInt16LE(1, 20);  // AudioFormat (1 = PCM)
+    header.writeUInt16LE(numChannels, 22);
+    header.writeUInt32LE(sampleRate, 24);
+    header.writeUInt32LE(byteRate, 28);
+    header.writeUInt16LE(blockAlign, 32);
+    header.writeUInt16LE(bitsPerSample, 34);
+
+    // data sub-chunk
+    header.write('data', 36);
+    header.writeUInt32LE(dataSize, 40);
+
+    // Combine header + PCM data
+    return Buffer.concat([header, pcmData]);
   }
 
   /**
