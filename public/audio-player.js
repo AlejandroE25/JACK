@@ -10,7 +10,6 @@ class AudioPlayer {
     this.audioQueue = [];
     this.nextStartTime = 0;
     this.currentSourceNodes = [];
-    this.pendingChunks = []; // Buffer for audio chunks until TTS_END
 
     // Audio-reactive blob visualization
     this.analyser = null;
@@ -80,21 +79,30 @@ class AudioPlayer {
         console.log('[AudioPlayer] Received marker:', marker);
 
         if (marker === 'TTS_END') {
-          // Decode and play all buffered chunks
-          await this._decodeAndPlayBufferedChunks();
-          await this._onPlaybackComplete();
+          // TTS_END now just signals end of stream - don't need to do anything
+          // Chunks are already playing as they arrive
+          console.log('[AudioPlayer] TTS_END marker received (all chunks already playing)');
           return;
         } else if (marker === 'TTS_ABORT') {
-          this.pendingChunks = []; // Clear buffer
           await this.stop();
           return;
         }
       }
 
-      // Buffer the chunk for sequential playback
-      // WAV chunks are complete audio files with headers - decode individually
-      this.pendingChunks.push(audioArrayBuffer);
-      console.log(`[AudioPlayer] Buffered chunk ${this.pendingChunks.length} (${audioArrayBuffer.byteLength} bytes)`);
+      // Decode and play immediately (don't wait for TTS_END)
+      // Each chunk from Piper is a complete WAV file - play as soon as it arrives
+      console.log(`[AudioPlayer] Decoding chunk immediately (${audioArrayBuffer.byteLength} bytes)`);
+      const audioBuffer = await this.audioContext.decodeAudioData(audioArrayBuffer);
+
+      console.log(`[AudioPlayer] Decoded chunk:`, {
+        duration: audioBuffer.duration.toFixed(2) + 's',
+        sampleRate: audioBuffer.sampleRate,
+        channels: audioBuffer.numberOfChannels,
+        contextRate: this.audioContext.sampleRate
+      });
+
+      // Schedule it for immediate playback
+      this._scheduleBuffer(audioBuffer);
 
     } catch (error) {
       console.error('[AudioPlayer] Error playing chunk:', error);
@@ -120,92 +128,6 @@ class AudioPlayer {
     return new TextDecoder().decode(data);
   }
 
-  /**
-   * Decode and play all buffered audio chunks
-   * WAV chunks from Piper are complete audio files with headers - decode each individually
-   */
-  async _decodeAndPlayBufferedChunks() {
-    if (this.pendingChunks.length === 0) {
-      console.log('[AudioPlayer] No chunks to decode');
-      return;
-    }
-
-    try {
-      // Stop any currently playing audio (interrupt)
-      if (this.isPlaying) {
-        console.log('[AudioPlayer] Interrupting previous playback');
-        this.currentSourceNodes.forEach(node => {
-          try {
-            node.stop();
-          } catch (e) {
-            // Node might already be stopped
-          }
-        });
-        this.currentSourceNodes = [];
-      }
-
-      // Reset state for sequential playback
-      this.isPlaying = false;
-      this.nextStartTime = 0;
-
-      console.log(`[AudioPlayer] Decoding ${this.pendingChunks.length} WAV chunks`);
-
-      // Copy chunks array and clear buffer before processing
-      const chunksToProcess = [...this.pendingChunks];
-      this.pendingChunks = [];
-
-      // Decode and schedule each WAV chunk individually
-      let totalDuration = 0;
-      let successfulChunks = 0;
-
-      for (let i = 0; i < chunksToProcess.length; i++) {
-        const chunk = chunksToProcess[i];
-
-        try {
-          // Decode this WAV chunk
-          console.log(`[AudioPlayer] Decoding chunk ${i + 1}: ${chunk.byteLength} bytes`);
-          const audioBuffer = await this.audioContext.decodeAudioData(chunk);
-
-          console.log(`[AudioPlayer] Decoded chunk ${i + 1}/${chunksToProcess.length}:`, {
-            duration: audioBuffer.duration.toFixed(2) + 's',
-            sampleRate: audioBuffer.sampleRate,
-            channels: audioBuffer.numberOfChannels,
-            contextRate: this.audioContext.sampleRate
-          });
-
-          totalDuration += audioBuffer.duration;
-          successfulChunks++;
-
-          // Schedule it for playback
-          this._scheduleBuffer(audioBuffer);
-        } catch (decodeError) {
-          console.error(`[AudioPlayer] Failed to decode chunk ${i + 1}:`, decodeError);
-          // Continue with remaining chunks
-        }
-      }
-
-      console.log(`[AudioPlayer] Successfully decoded ${successfulChunks}/${chunksToProcess.length} chunks (${totalDuration.toFixed(2)}s total)`);
-
-    } catch (error) {
-      console.error('[AudioPlayer] Failed to process buffered chunks:', error);
-      this.pendingChunks = []; // Clear buffer on error
-      this.isPlaying = false;
-      this.nextStartTime = 0;
-    }
-  }
-
-  /**
-   * Decode audio chunk to AudioBuffer
-   */
-  async _decodeAudioChunk(arrayBuffer) {
-    try {
-      const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
-      return audioBuffer;
-    } catch (error) {
-      console.error('[AudioPlayer] Audio decode error:', error);
-      return null;
-    }
-  }
 
   /**
    * Schedule audio buffer for playback
@@ -255,29 +177,6 @@ class AudioPlayer {
     console.log(`[AudioPlayer] Scheduled chunk (duration: ${audioBuffer.duration.toFixed(2)}s, start: ${this.nextStartTime.toFixed(2)}s)`);
   }
 
-  /**
-   * Handle playback completion
-   */
-  async _onPlaybackComplete() {
-    console.log('[AudioPlayer] Playback complete');
-
-    // Wait for any remaining audio to finish
-    const waitTime = Math.max(0, this.nextStartTime - this.audioContext.currentTime);
-    if (waitTime > 0) {
-      await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
-    }
-
-    // Reset state for next TTS session
-    this.isPlaying = false;
-    this.nextStartTime = 0;
-    this.pendingChunks = [];
-    console.log('[AudioPlayer] State reset for next TTS session');
-
-    // Dispatch event for UI updates
-    if (window.handleWebRTCStateChange) {
-      window.handleWebRTCStateChange('playback-complete');
-    }
-  }
 
   /**
    * Stop playback immediately

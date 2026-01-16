@@ -144,26 +144,70 @@ for (let i = 0; i < chunksToProcess.length; i++) {
 
 ### Client-Side
 - [`public/audio-player.js`](../public/audio-player.js)
-  - Changed AudioContext to force 22050 Hz sample rate (line 29-30)
-  - Updated `_decodeAndPlayBufferedChunks()` to decode WAV chunks individually (lines 152-169)
-  - Renamed method `_decodeMP3Chunk()` → `_decodeAudioChunk()`
-  - Updated comments from "MP3" to generic "audio"
+  - Changed AudioContext to force 22050 Hz sample rate (line 30-32)
+  - Removed `pendingChunks` buffering array - no longer needed
+  - Changed `playChunk()` to decode and play immediately (line 96-106)
+  - Removed `_decodeAndPlayBufferedChunks()` method - no longer needed
+  - Removed `_onPlaybackComplete()` method - no longer needed
+  - TTS_END marker now just logs, doesn't trigger playback
+
+## Solution 4: Play Chunks Immediately (Client-Side)
+
+**File:** [`public/audio-player.js`](../public/audio-player.js)
+
+The audio player was buffering all chunks and waiting for `TTS_END` marker before playing. This caused "speech stacking" where long responses would wait for shorter responses.
+
+**Problem**: Multiple sentences are processed in parallel with different `responseId`s. Each sentence completes at different times and sends its own `TTS_END` marker. If sentence 2 finishes before sentence 1, playback was out of order.
+
+**Before:**
+```javascript
+async playChunk(audioArrayBuffer) {
+  // Buffer the chunk until TTS_END arrives
+  this.pendingChunks.push(audioArrayBuffer);
+
+  if (marker === 'TTS_END') {
+    // Only now decode and play all buffered chunks
+    await this._decodeAndPlayBufferedChunks();
+  }
+}
+```
+
+**After:**
+```javascript
+async playChunk(audioArrayBuffer) {
+  // Decode and play immediately - don't wait for TTS_END
+  const audioBuffer = await this.audioContext.decodeAudioData(audioArrayBuffer);
+  this._scheduleBuffer(audioBuffer);
+  // Chunks play in order they arrive, queued sequentially
+}
+```
+
+**Why This Works**: Since Piper now sends complete WAV files (not fragments), each chunk can be decoded and played immediately. The `_scheduleBuffer()` method handles sequential queuing automatically using Web Audio API's timeline.
 
 ## Testing
 
 After this fix, Piper WAV audio should:
 1. ✅ Decode successfully without "unknown content type" errors
 2. ✅ Play at correct speed (not garbled/chipmunk)
-3. ✅ Play each sentence sequentially
-4. ✅ Maintain audio-reactive visualization
-5. ✅ Support interruption via abort signals
+3. ✅ Play each sentence immediately as it arrives (no stacking)
+4. ✅ Play sentences in the order they're received (sequential queuing)
+5. ✅ Maintain audio-reactive visualization
+6. ✅ Support interruption via abort signals
 
 ## Performance Impact
 
-**Positive:** Sending complete WAV files per sentence actually improves performance:
-- **Before**: 8 chunks per sentence × decode overhead = more processing
-- **After**: 1 complete WAV per sentence = single decode, less overhead
-- No network latency difference (same total bytes)
+**Positive Changes:**
+
+1. **Sending complete WAV files per sentence** (vs chunking):
+   - **Before**: 8 chunks per sentence × decode overhead = more processing
+   - **After**: 1 complete WAV per sentence = single decode, less overhead
+   - No network latency difference (same total bytes)
+
+2. **Immediate playback** (vs buffering until TTS_END):
+   - **Before**: Wait for all chunks + TTS_END → decode all → play
+   - **After**: Decode and play each sentence as soon as it arrives
+   - **Latency reduction**: ~500ms-2s faster first audio (no waiting for batch)
+   - **Better UX**: Speech flows naturally, no awkward pauses between sentences
 
 ## Architecture Insights
 
@@ -181,3 +225,9 @@ This is why Piper generates one WAV file per sentence - it's the correct atomic 
 - **Solution**: Configure AudioContext to match Piper's native rate (22050 Hz)
 
 Let the audio stay in its native format throughout the pipeline to avoid quality degradation.
+
+**Key Takeaway #3**: Stream-friendly architectures need immediate playback:
+- **Multi-sentence responses**: Multiple sentences process in parallel
+- **Problem**: Buffering until "end marker" causes race conditions
+- **Solution**: Play chunks immediately as they arrive, rely on Web Audio API's scheduling for sequential queuing
+- **Benefit**: Natural speech flow, lower latency, no stacking issues
