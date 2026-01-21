@@ -1,63 +1,169 @@
 # JACK v2 Architecture
 
-A real-time, voice-first AI assistant with intelligent intent parsing and dynamic capability generation.
+**JACK is a UI** - a real-time voice and document interface to capabilities.
+
+Not an assistant. Not a chatbot. An interface.
+
+---
+
+## Core Concept: JACK as UI Layer
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                                USER                                       │
+│                         (Voice / Text / Gesture)                          │
+└────────────────────────────────────┬─────────────────────────────────────┘
+                                     │
+                                     ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│                                                                          │
+│                          JACK UI LAYER                                   │
+│                                                                          │
+│   ┌────────────────────────────────────────────────────────────────┐     │
+│   │                     INPUT PROCESSING                           │     │
+│   │                                                                │     │
+│   │  Voice Recognition ──► Intent Parser ──► Request Formation    │     │
+│   │                                                                │     │
+│   └────────────────────────────────────────────────────────────────┘     │
+│                                     │                                    │
+│                                     ▼                                    │
+│   ┌────────────────────────────────────────────────────────────────┐     │
+│   │                    OUTPUT MODALITY ENGINE                      │     │
+│   │                                                                │     │
+│   │  Decides: Voice only? Voice + Doc? Doc only? Auto-open?       │     │
+│   │                                                                │     │
+│   │  • Simple answer → Voice                                       │     │
+│   │  • Complex result → Highlights (voice) + Full Document         │     │
+│   │  • Code/Data → Write to file, announce location                │     │
+│   │                                                                │     │
+│   └────────────────────────────────────────────────────────────────┘     │
+│                                     │                                    │
+│   ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐     │
+│   │  SPEECH OUTPUT  │    │  DOCUMENT GEN   │    │   FILE OUTPUT   │     │
+│   │  (Piper TTS)    │    │  (Markdown)     │    │  (Save + Open)  │     │
+│   └─────────────────┘    └─────────────────┘    └─────────────────┘     │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     │ Requests capabilities
+                                     ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│                                                                          │
+│                       CAPABILITY LAYER                                   │
+│                        (Swappable)                                       │
+│                                                                          │
+│   ┌───────────────┐  ┌───────────────┐  ┌───────────────────────────┐   │
+│   │    PLUGINS    │  │    SANDBOX    │  │      EXTERNAL APIs        │   │
+│   │               │  │               │  │                           │   │
+│   │ • Weather     │  │ • Code gen    │  │ • Claude (Anthropic)      │   │
+│   │ • News        │  │ • Safe exec   │  │ • Weather API             │   │
+│   │ • Search      │  │ • Tool store  │  │ • Search API              │   │
+│   │ • Reminders   │  │               │  │                           │   │
+│   └───────────────┘  └───────────────┘  └───────────────────────────┘   │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+The separation is clean:
+- **UI Layer (JACK)**: How you interact - voice in, voice/documents out
+- **Capability Layer**: What it can do - plugins, sandbox, APIs
+
+Capabilities are swappable. The UI is the constant.
+
+---
 
 ## Design Principles
 
-1. **Test-Driven Development** - Tests before implementation
-2. **Real-time first** - Speech never blocks, instant acknowledgments for complex queries only
-3. **Smart file finding** - Search common locations if file not at expected path
-4. **Silent work** - Long tasks work quietly, speak only on crucial updates or completion
-5. **Hybrid architecture** - Right tool for each job
+1. **UI first** - JACK is an interface, not a personality
+2. **Right output for the job** - Voice for quick facts, documents for complex results
+3. **Test-Driven Development** - Tests before implementation
+4. **Real-time** - Speech never blocks processing
+5. **Smart file finding** - Search common locations if file not at expected path
+6. **Silent work** - Long tasks work quietly, speak only on crucial updates
+
+---
+
+## Output Modality (The Core UX Decision)
+
+This is what makes JACK an interface, not an assistant. The output modality matches what's actually useful.
+
+### Voice Only (Simple, Immediate)
+- Simple facts: weather, time, yes/no answers
+- Confirmations: "Done", "Saved", "Sent"
+- Errors needing decision: "Build failed, retry?"
+
+### Highlights + Document (Complex Results)
+For anything with depth, JACK speaks key takeaways AND creates a full document:
+
+| Task | Voice (Highlights) | Document |
+|------|-------------------|----------|
+| Research | "Three options. X fastest, Y cheapest, Z most reliable." | Full comparison |
+| Code review | "12 issues - 3 critical. Main problem is auth flow." | Issue list with lines |
+| Data analysis | "Revenue up 12%, Q3 was turning point." | Charts, tables, data |
+| Meeting notes | "Action: proposal by Friday, call Sarah Monday." | Full discussion notes |
+| Error investigation | "Memory leak in image processor, started after last deploy." | Traces, logs, timeline |
+
+### Document Only (Code, Exports)
+- Generated code → write to file, announce location
+- Data exports → save to Downloads
+- Logs → save silently to `~/.jack/logs/`
+
+### Output Location (Context-Dependent)
+
+| Content Type | Location |
+|--------------|----------|
+| Code | Project folder it relates to |
+| Research/docs | Desktop |
+| Data exports | Downloads |
+| Logs/debug | `~/.jack/logs/` |
+
+### Notification Behavior
+
+When JACK creates a document:
+1. **Speak briefly**: "Research done" / "Report ready"
+2. **Open the file automatically** so you can read immediately
 
 ---
 
 ## Technology Stack
 
-### Core Runtime: **Bun + TypeScript**
+### Core Runtime: Bun + TypeScript
 - 3-4x faster than Node.js
 - Native TypeScript (no build step)
 - Built-in SQLite
 - Native FFI for calling Rust/C
-- Drop-in Node.js compatible
 
-### Data Serialization: **MessagePack + JSON Schema**
+### Data Serialization: MessagePack + JSON Schema
 - Binary format, 2-4x faster than JSON
 - ~30% smaller payloads
-- JSON Schema for contract validation at boundaries
-- Easy debugging (decodes to JSON)
+- JSON Schema for contract validation
 
-### Speech: **Piper TTS (Native)**
+### Speech: Piper TTS (Native)
 - Local neural TTS (~200-500ms latency)
-- Called via subprocess or FFI
-- Non-blocking via worker/separate process
+- Non-blocking via separate process
 
-### AI: **Anthropic Claude**
+### AI: Anthropic Claude
 - Haiku for fast routing (<200ms)
 - Sonnet for complex reasoning
-- Opus for code generation in sandbox
+- Opus for code generation
 
-### Database: **SQLite (Bun native)**
+### Database: SQLite (Bun native)
 - Embedded, zero-config
-- Fast for local data
 - Memory, preferences, tool store
 
 ---
 
-## System Architecture
+## System Architecture (Detailed)
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────────────────────┐
 │                           CLIENTS                                    │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌───────────┐  │
-│  │   Browser   │  │    CLI      │  │   Mobile    │  │    IoT    │  │
-│  │  (Web App)  │  │  (Terminal) │  │   (Future)  │  │  (Future) │  │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └─────┬─────┘  │
-│         │                │                │               │         │
-│         └────────────────┴────────────────┴───────────────┘         │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌───────────┐    │
+│  │   Browser   │  │    CLI      │  │   Mobile    │  │    IoT    │    │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └─────┬─────┘    │
+│         └────────────────┴────────────────┴───────────────┘          │
 │                                   │                                  │
 │                          WebSocket + MessagePack                     │
-│                                   │                                  │
 └───────────────────────────────────┼──────────────────────────────────┘
                                     │
                                     ▼
@@ -65,176 +171,315 @@ A real-time, voice-first AI assistant with intelligent intent parsing and dynami
 │                        JACK CORE (Bun/TypeScript)                     │
 │                                                                       │
 │  ┌─────────────────────────────────────────────────────────────────┐  │
-│  │                    EVENT BUS (Priority Lanes)                   │  │
-│  │   URGENT (Speech)  │  HIGH (Input)  │  NORMAL  │  LOW (Cleanup) │  │
+│  │                         EVENT BUS                               │  │
+│  │              Simple pub/sub for component communication          │  │
 │  └─────────────────────────────────────────────────────────────────┘  │
 │                                                                       │
-│  ┌───────────────┐  ┌───────────────┐  ┌───────────────────────────┐ │
-│  │ INTENT PARSER │  │    CONTEXT    │  │      ORCHESTRATOR         │ │
-│  │               │  │    MANAGER    │  │                           │ │
-│  │ • Compound    │  │               │  │ • Route to components     │ │
-│  │   detection   │  │ • Time        │  │ • Manage execution flow   │ │
-│  │ • Follow-ups  │  │ • Weather     │  │ • Handle responses        │ │
-│  │ • Deps graph  │  │ • Location    │  │ • Background task mgmt    │ │
-│  │ • Clarify     │  │ • Preferences │  │                           │ │
-│  └───────────────┘  └───────────────┘  └───────────────────────────┘ │
+│  ╔═══════════════════════════════════════════════════════════════╗   │
+│  ║                      UI LAYER                                  ║   │
+│  ║  ┌───────────────┐  ┌───────────────┐  ┌────────────────────┐  ║   │
+│  ║  │ INTENT PARSER │  │   MODALITY    │  │   ORCHESTRATOR     │  ║   │
+│  ║  │               │  │    ENGINE     │  │                    │  ║   │
+│  ║  │ • Compound    │  │               │  │ • Route requests   │  ║   │
+│  ║  │   detection   │  │ • Voice?      │  │ • Manage responses │  ║   │
+│  ║  │ • Follow-ups  │  │ • Document?   │  │ • Format output    │  ║   │
+│  ║  │ • Deps graph  │  │ • Both?       │  │                    │  ║   │
+│  ║  └───────────────┘  └───────────────┘  └────────────────────┘  ║   │
+│  ╚═══════════════════════════════════════════════════════════════╝   │
 │                                                                       │
-│  ┌───────────────┐  ┌───────────────┐  ┌───────────────────────────┐ │
-│  │    ACTION     │  │    PLUGIN     │  │       FILE FINDER         │ │
-│  │   EXECUTOR    │  │   REGISTRY    │  │                           │ │
-│  │               │  │               │  │ • Smart search            │ │
-│  │ • Parallel    │  │ • Weather     │  │ • Common locations        │ │
-│  │ • Sequential  │  │ • News        │  │ • Fuzzy match             │ │
-│  │ • Progress    │  │ • Search      │  │ • Cache found paths       │ │
-│  │ • Fallback    │  │ • Memory      │  │                           │ │
-│  └───────────────┘  └───────────────┘  └───────────────────────────┘ │
+│  ╔═══════════════════════════════════════════════════════════════╗   │
+│  ║                   CAPABILITY LAYER                             ║   │
+│  ║  ┌───────────────┐  ┌───────────────┐  ┌────────────────────┐  ║   │
+│  ║  │    ACTION     │  │    PLUGIN     │  │     FILE FINDER    │  ║   │
+│  ║  │   EXECUTOR    │  │   REGISTRY    │  │                    │  ║   │
+│  ║  │               │  │               │  │ • Smart search     │  ║   │
+│  ║  │ • Parallel    │  │ • Weather     │  │ • Common locations │  ║   │
+│  ║  │ • Sequential  │  │ • News        │  │ • Fuzzy match      │  ║   │
+│  ║  │ • Progress    │  │ • Search      │  │ • Cache paths      │  ║   │
+│  ║  └───────────────┘  └───────────────┘  └────────────────────┘  ║   │
+│  ║                                                                ║   │
+│  ║  ┌───────────────┐  ┌─────────────────────────────────────────┐║   │
+│  ║  │    CONTEXT    │  │           SANDBOX EXECUTOR              │║   │
+│  ║  │    MANAGER    │  │                                         │║   │
+│  ║  │               │  │ • Code generation (Claude)              │║   │
+│  ║  │ • Time        │  │ • V8 isolate execution                  │║   │
+│  ║  │ • Weather     │  │ • Network + file access (controlled)    │║   │
+│  ║  │ • Location    │  │ • Tool persistence                      │║   │
+│  ║  └───────────────┘  └─────────────────────────────────────────┘║   │
+│  ╚═══════════════════════════════════════════════════════════════╝   │
 │                                                                       │
 └───────────────────────────────────────────────────────────────────────┘
-          │                    │                    │
-          │                    │                    │
-          ▼                    ▼                    ▼
-┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────────────┐
-│  SPEECH SERVICE │  │ SANDBOX EXECUTOR│  │      EXTERNAL APIS          │
-│  (Separate Proc)│  │  (V8 Isolate)   │  │                             │
-│                 │  │                 │  │ • Claude (Anthropic)        │
-│ • Piper TTS     │  │ • Code gen      │  │ • Weather (OpenWeatherMap)  │
-│ • Non-blocking  │  │ • Safe exec     │  │ • News (RSS)                │
-│ • Queue mgmt    │  │ • Network+File  │  │ • Search (Google)           │
-│ • Interruption  │  │ • Tool persist  │  │ • Wolfram Alpha             │
-│                 │  │                 │  │                             │
-└─────────────────┘  └─────────────────┘  └─────────────────────────────┘
+          │                              │
+          ▼                              ▼
+┌─────────────────┐            ┌─────────────────────────────┐
+│  SPEECH SERVICE │            │      EXTERNAL APIS          │
+│  (Separate Proc)│            │                             │
+│                 │            │ • Claude (Anthropic)        │
+│ • Piper TTS     │            │ • Weather (OpenWeatherMap)  │
+│ • Non-blocking  │            │ • News (RSS)                │
+│ • Queue mgmt    │            │ • Search (Google)           │
+│ • Interruption  │            │                             │
+└─────────────────┘            └─────────────────────────────┘
 ```
 
 ---
 
-## Component Details
+## UI Layer Components
 
-### 1. Event Bus (Priority Lanes)
+### 1. Intent Parser
 
-Non-blocking event processing with parallel lanes:
-
-```typescript
-enum EventLane {
-  URGENT = 'urgent',   // Speech - immediate, parallel
-  HIGH = 'high',       // User input - high priority
-  NORMAL = 'normal',   // Background work
-  LOW = 'low'          // Cleanup, analytics
-}
-
-interface EventBus {
-  publish(event: Event, lane?: EventLane): Promise<void>;
-  publishFireAndForget(event: Event, lane?: EventLane): void;
-  subscribe(types: EventType[], handler: Handler, lane?: EventLane): string;
-}
-```
-
-### 2. Intent Parser
-
-Semantic understanding of user requests:
+Understands what the user wants. Claude (Haiku) handles the NLP, hardcoded rules handle behavior decisions.
 
 ```typescript
 interface ParsedIntent {
   id: string;
-  type: 'query' | 'action' | 'compound' | 'follow_up';
   action: string;
   parameters: Record<string, unknown>;
-  confidence: number;
   dependencies: string[];  // Intent IDs this depends on
+  conditional?: boolean;   // Only execute if dependency result allows
 }
 
 interface IntentParseResult {
   intents: ParsedIntent[];
-  isCompound: boolean;
   executionOrder: string[][];  // Parallel groups
-  requiresAcknowledgment: boolean;  // Only true for complex/long ops
+}
+
+// Hardcoded acknowledgment logic - no AI needed
+const FAST_ACTIONS = ['get_time', 'get_weather', 'get_date', 'simple_math'];
+
+function shouldAcknowledge(result: IntentParseResult): boolean {
+  if (result.intents.length > 1) return true;
+  if (!FAST_ACTIONS.includes(result.intents[0].action)) return true;
+  return false;
 }
 ```
 
-### 3. Context Manager
+**How it works:**
+1. Claude parses natural language → structured intents (one API call)
+2. Hardcoded rules decide acknowledgment, ordering, etc. (no API call)
+3. Context Manager provides conversation history for follow-ups
 
-Client-side context providers:
+**Capabilities:**
+- Compound detection: "Get weather and tell me if I need umbrella"
+- Dependency extraction: Intent B depends on Intent A's result
+- Follow-up recognition: Uses context from Context Manager
+- Clarification generation: Ask user when ambiguous
+
+### 2. Modality Engine
+
+Decides how to present output:
 
 ```typescript
-interface ContextProvider {
-  type: ContextType;
-  get(): Promise<ContextValue>;
-  isStale(): boolean;
-  refresh(): Promise<ContextValue>;
+interface ModalityDecision {
+  voice: boolean;
+  document: boolean;
+  documentType: 'markdown' | 'code' | 'data';
+  documentLocation: string;  // Where to save
+  autoOpen: boolean;
+  highlights?: string;  // Key points for voice
 }
 
-enum ContextType {
-  TIME = 'time',
-  WEATHER = 'weather',
-  LOCATION = 'location',
-  USER_PREFERENCES = 'user_preferences',
-  ACTIVE_TASKS = 'active_tasks'
+interface ModalityEngine {
+  decide(result: ExecutionResult, context: ContextSnapshot): ModalityDecision;
 }
 ```
+
+**Rules:**
+- Simple answer (<30 seconds to say) → Voice only
+- Complex result → Voice highlights + Document
+- Code/data output → Document only
+
+### 3. Orchestrator
+
+Routes requests and manages the overall flow:
+
+```typescript
+interface Orchestrator {
+  handle(input: UserInput): Promise<void>;
+  getTaskStatus(taskId: string): TaskStatus;
+  interrupt(taskId: string): void;
+}
+```
+
+---
+
+## Capability Layer Components
 
 ### 4. Action Executor
 
-Execute intents with proper sequencing:
+Executes intents with proper sequencing. Handles parallel/sequential execution, conditionals, and error propagation.
 
 ```typescript
 interface ActionExecutor {
-  plan(intents: ParsedIntent[], context: ContextSnapshot): ExecutionPlan;
-  execute(plan: ExecutionPlan, onProgress?: ProgressCallback): Promise<ExecutionResult[]>;
-  canHandle(action: string): boolean;
+  execute(
+    intents: ParsedIntent[],
+    context: ContextSnapshot,
+    onProgress?: (intentId: string, status: ProgressStatus) => void
+  ): Promise<ExecutionResult[]>;
+}
+
+type ProgressStatus =
+  | { type: 'started' }
+  | { type: 'progress', message: string }
+  | { type: 'completed', result: unknown }
+  | { type: 'failed', error: string }
+  | { type: 'skipped', reason: string };
+```
+
+**Execution flow:**
+1. Group intents by dependency order (independent ones run in parallel)
+2. For each group, run all intents with `Promise.all`
+3. Store results for dependent intents to reference
+4. For conditional intents, evaluate condition against prior results
+
+**Conditional logic:**
+```typescript
+// Parser outputs: { action: 'set_reminder', conditional: true, conditionExpr: 'weather.isRainy' }
+// Executor evaluates conditionExpr against prior results
+function shouldExecute(intent: ParsedIntent, priorResults: Map<string, Result>): boolean {
+  if (!intent.conditional) return true;
+  return evaluateCondition(intent.conditionExpr, priorResults);
 }
 ```
 
-### 5. Sandbox Executor
+**Error handling:**
+- If intent fails and has dependents → skip dependents, notify user
+- If intent fails with no dependents → report error, continue others
 
-Dynamic code generation and safe execution:
+### 5. Plugin Registry
+
+Manages available plugins:
+
+```typescript
+interface Plugin {
+  name: string;
+  actions: string[];  // Actions this plugin handles
+  execute(action: string, params: Record<string, unknown>): Promise<PluginResult>;
+}
+
+interface PluginRegistry {
+  register(plugin: Plugin): void;
+  find(action: string): Plugin | null;
+  list(): Plugin[];
+}
+```
+
+**Core plugins (built-in):**
+
+| Plugin | Actions | Notes |
+|--------|---------|-------|
+| **Search** | `web_search` | Google Custom Search + Haiku summarization. Used by user AND internally by JACK when solving problems |
+| **Weather** | `get_weather` | OpenWeatherMap API |
+| **Time** | `get_time`, `get_date` | Local time, timezone-aware |
+| **Reminders** | `create_reminder`, `list_reminders` | SQLite-backed |
+| **Memory** | `remember`, `recall`, `forget` | Interface to Context Manager's long-term memory |
+
+**Search plugin** is special - it's a core capability JACK uses internally:
+```
+User: "Help me fix this React error"
+  → JACK doesn't know answer
+  → JACK calls SearchPlugin.execute('web_search', { query: 'React error fix' })
+  → JACK synthesizes answer from results + own knowledge
+```
+
+### 6. Context Manager
+
+Three-tier context system:
+
+```typescript
+interface ContextManager {
+  // Short-term: recent intents (3 turns or 60 seconds)
+  getRecentIntents(clientId: string): RecentIntent[];
+  recordIntent(clientId: string, intent: Intent, result: Result): void;
+
+  // Session: active resources (until disconnect)
+  getActiveResource(clientId: string): Resource | null;
+  setActiveResource(clientId: string, resource: Resource): void;
+
+  // Long-term: persisted key-value memory (SQLite)
+  memory: Memory;
+}
+
+interface Memory {
+  get(key: string): unknown;
+  set(key: string, value: unknown): void;
+  getNamespace(prefix: string): Record<string, unknown>;
+}
+```
+
+**Long-term memory** uses namespaced key-value pairs (no NLP needed at read time):
+
+```
+~/.jack/memory.json
+{
+  "user.name": "Jack",
+  "user.temperatureUnit": "celsius",
+  "preference.voice.speed": 1.2,
+  "project.myapp.path": "~/code/myapp",
+  "tool.csvParser.lastUsed": 1705123456789
+}
+```
+
+**Namespaces:**
+- `user.*` - About the user
+- `preference.*` - UI/behavior preferences
+- `project.*` - Project-specific context
+- `person.*` - People the user mentions
+- `tool.*` - Generated tools metadata
+
+Intent Parser detects preference-setting phrases, extracts key-value, stores directly. No NLP on retrieval.
+
+### 7. Sandbox Executor
+
+Dynamic code generation and safe execution. When no plugin handles an action, generate code on the fly.
 
 ```typescript
 interface SandboxExecutor {
-  // Generate tool from description
-  generateTool(description: string, examples: Example[]): Promise<GeneratedTool>;
+  generate(description: string, context: SandboxContext): Promise<GeneratedTool>;
+  execute(tool: GeneratedTool, params: Record<string, unknown>): Promise<SandboxResult>;
+  terminate(executionId: string): void;  // Instant kill switch
 
-  // Execute in isolated V8 context
-  execute(code: string, context: SandboxContext): Promise<SandboxResult>;
-
-  // Persist successful tools
+  // Tool persistence
   saveTool(tool: GeneratedTool): Promise<void>;
-
-  // Load saved tools
-  loadTools(): Promise<GeneratedTool[]>;
+  loadTool(name: string): Promise<GeneratedTool | null>;
 }
 
 interface SandboxContext {
-  // Controlled capabilities
-  http: SafeHttpClient;      // Rate-limited, domain whitelist
-  files: SafeFileAccess;     // Restricted paths
-  parameters: Record<string, unknown>;
+  fetch: (url: string) => Promise<Response>;  // No whitelist, but logged
+  readFile: (path: string) => Promise<string>;
+  writeFile: (path: string, content: string) => Promise<void>;
+  params: Record<string, unknown>;
 }
 ```
 
-### 6. Speech Service (Separate Process)
+**Safety model - trust isolation, control resources:**
+- V8 isolate (via `isolated-vm`) - code can't escape sandbox
+- Hard limits: 30s timeout, 128MB memory
+- File access restricted to allowed directories
+- Network: no whitelist, but all requests logged
+- Kill switch: `isolate.dispose()` terminates immediately
 
-Non-blocking voice output:
+**Monitoring triggers kill:**
+- CPU spike / runaway loop
+- Suspicious network patterns
+- User says "stop" / "cancel"
 
+**Tool persistence:**
 ```typescript
-interface SpeechService {
-  // Fire-and-forget - returns immediately
-  speak(request: SpeechRequest): void;
-
-  // Only for complex queries, not simple ones
-  speakAcknowledgment(clientId: string): void;
-
-  interrupt(clientId: string): void;
-  isSpeaking(clientId: string): boolean;
-}
-
-interface SpeechRequest {
-  text: string;
-  priority: 'immediate' | 'normal' | 'background';
-  interruptible: boolean;
-  clientId: string;
+// ~/.jack/tools/csv-parser.js
+interface PersistedTool {
+  name: string;
+  description: string;
+  code: string;
+  inputSchema: object;  // JSON Schema
+  createdAt: number;
+  lastUsed: number;
+  useCount: number;
 }
 ```
+```
 
-### 7. File Finder
+### 8. File Finder
 
 Smart file location:
 
@@ -254,6 +499,173 @@ interface FileFinder {
 
 ---
 
+## Infrastructure Components
+
+### 9. Event Bus
+
+Simple pub/sub for component communication. No priority lanes needed - speech runs in a separate process, and the acknowledgment decision happens in the Intent Parser before any events are emitted.
+
+```typescript
+interface EventBus {
+  emit<T>(type: string, payload: T): void;
+  on<T>(type: string, handler: (payload: T) => void): () => void;
+  once<T>(type: string, handler: (payload: T) => void): () => void;
+}
+```
+
+The key insight: priority lanes were trying to solve "speech shouldn't wait for slow work." But:
+1. Speech runs in a separate process (already non-blocking)
+2. The simple-vs-complex decision happens in Intent Parser, before execution
+3. By the time events hit the bus, we already know what to do
+
+So the EventBus is just a decoupling mechanism - components don't call each other directly.
+
+### 10. Protocol Codec (MessagePack)
+
+```typescript
+interface Message {
+  id: string;           // UUID
+  type: MessageType;    // Enum
+  timestamp: number;    // Unix ms
+  payload: unknown;     // Type-specific
+}
+
+interface Codec {
+  encode(message: Message): Uint8Array;
+  decode(bytes: Uint8Array): Message;
+  validate(message: Message, schema: Schema): boolean;
+}
+```
+
+### 11. Speech Service (Separate Process)
+
+Non-blocking voice output. Runs in separate process so it never blocks main work.
+
+```typescript
+interface SpeechService {
+  speak(clientId: string, text: string): void;  // Fire-and-forget
+  interrupt(clientId: string): void;            // Hard cut, immediate
+  isSpeaking(clientId: string): boolean;
+}
+
+// Message sent to client (text + audio paired)
+interface SpeechMessage {
+  text: string;
+  audio: Uint8Array;  // Full WAV, not streamed
+}
+```
+
+**Design decisions:**
+- **Single voice** - One Piper voice for JACK (configurable in preferences)
+- **Full WAV generation** - Not streamed. Text and audio always paired in one message
+- **Hard cut interruption** - When user speaks, JACK stops immediately
+- **Separate process** - Uses Bun worker or subprocess, never blocks main event loop
+
+**Flow:**
+1. Main process sends text to speech process (fire-and-forget)
+2. Speech process generates WAV with Piper (~200-500ms)
+3. Speech process sends `{ text, audio }` to client via WebSocket
+4. Client plays audio, optionally displays text
+
+### 12. WebSocket Server & Protocol
+
+#### Connection
+
+```
+ws://localhost:3000
+
+Client connects → sends 'connect' → receives 'connected'
+```
+
+#### Message Envelope (MessagePack encoded)
+
+```typescript
+interface Message {
+  id: string;        // UUID for request/response correlation
+  type: string;      // Message type
+  ts: number;        // Unix timestamp ms
+  payload: unknown;  // Type-specific data
+}
+```
+
+#### Client Identification (Persistent)
+
+Clients have persistent IDs that survive reconnection:
+
+```typescript
+// Client sends on connect
+interface ConnectPayload {
+  clientId?: string;           // Existing ID (omit if new client)
+  clientType: 'cli' | 'web' | 'mobile';
+  version: string;
+}
+
+// Server responds
+interface ConnectedPayload {
+  clientId: string;            // Confirmed or newly assigned
+  isReconnect: boolean;        // true if existing client restored
+}
+```
+
+Client stores ID locally (localStorage for web, config file for CLI). On reconnect, session context is restored.
+
+#### Client → Server Messages
+
+| Type | Payload | Description |
+|------|---------|-------------|
+| `connect` | `{ clientId?, clientType, version }` | Initial connection |
+| `input` | `{ text: string }` | User voice/text input |
+| `interrupt` | `{}` | Stop speaking, cancel current task |
+| `task_status` | `{ taskId: string }` | Request status of background task |
+| `context_update` | `{ type: string, data: unknown }` | Client-side context (location, etc.) |
+
+#### Server → Client Messages
+
+| Type | Payload | Description |
+|------|---------|-------------|
+| `connected` | `{ clientId, isReconnect }` | Connection established |
+| `ack` | `{ text: string, audio: Uint8Array }` | Brief acknowledgment ("On it.") |
+| `speech` | `{ text: string, audio: Uint8Array }` | Voice response |
+| `document` | `{ path: string, type: string }` | Document created, auto-open |
+| `progress` | `{ taskId, status, message? }` | Background task update |
+| `error` | `{ code: string, message: string }` | Error occurred |
+| `clarify` | `{ question: string, options?: string[] }` | JACK needs clarification |
+
+#### Example Flows
+
+**Simple query:**
+```
+→ { type: 'input', payload: { text: 'What time is it?' } }
+← { type: 'speech', payload: { text: '3:45', audio: <bytes> } }
+```
+
+**Complex query:**
+```
+→ { type: 'input', payload: { text: 'Research database options' } }
+← { type: 'ack', payload: { text: 'On it.', audio: <bytes> } }
+  ... work happens ...
+← { type: 'speech', payload: { text: 'Three options...', audio: <bytes> } }
+← { type: 'document', payload: { path: '~/Desktop/db-comparison.md', type: 'markdown' } }
+```
+
+**Interruption:**
+```
+→ { type: 'input', payload: { text: 'Research...' } }
+← { type: 'ack', payload: { text: 'On it.', audio: <bytes> } }
+→ { type: 'interrupt', payload: {} }
+← { type: 'speech', payload: { text: 'Stopped.', audio: <bytes> } }
+```
+
+**Clarification:**
+```
+→ { type: 'input', payload: { text: 'Open the report' } }
+← { type: 'clarify', payload: { question: 'Which report?', options: ['sales-q3.xlsx', 'annual-report.pdf'] } }
+→ { type: 'input', payload: { text: 'The sales one' } }
+← { type: 'speech', payload: { text: 'Opening.', audio: <bytes> } }
+```
+
+---
+
 ## Data Flow Examples
 
 ### Simple Query: "What's the weather?"
@@ -262,13 +674,15 @@ interface FileFinder {
 User: "What's the weather?"
   │
   ├─> IntentParser.parse() → Single intent, simple
-  │     └─> requiresAcknowledgment: false (quick query)
+  │     └─> requiresAcknowledgment: false
   │
   ├─> ActionExecutor.execute()
   │     └─> WeatherPlugin.get() → {temp: 72, conditions: "sunny"}
   │
-  └─> SpeechService.speak("It's 72 and sunny")
-      └─> Response in <500ms, no "working on it"
+  ├─> ModalityEngine.decide() → Voice only
+  │
+  └─> SpeechService.speak("72 and sunny")
+      └─> Response in <500ms, no acknowledgment
 ```
 
 ### Compound Query: "Get weather and remind me about umbrella if rainy"
@@ -287,7 +701,34 @@ User: "Get weather and remind me about umbrella if rainy"
   │     ├─> Intent 2: analyze (depends on 1) → {needsUmbrella: true}
   │     └─> Intent 3: create_reminder (depends on 2, conditional)
   │
-  └─> SpeechService.speak("Rain expected. I've set a reminder...")
+  ├─> ModalityEngine.decide() → Voice only (simple confirmation)
+  │
+  └─> SpeechService.speak("Rain expected. Reminder set for 8am.")
+```
+
+### Complex Research: "Research database options for my project"
+
+```
+User: "Research database options for my project"
+  │
+  ├─> IntentParser.parse() → Research intent
+  │     └─> requiresAcknowledgment: true
+  │
+  ├─> SpeechService.speak("On it.")
+  │
+  ├─> ActionExecutor.execute()
+  │     └─> Claude research → {options: [...], comparison: {...}}
+  │
+  ├─> ModalityEngine.decide() → Voice highlights + Document
+  │     └─> highlights: "Three options. PostgreSQL for reliability..."
+  │     └─> document: ~/Desktop/database-comparison.md
+  │
+  ├─> DocumentGenerator.create()
+  │     └─> Write full comparison to file
+  │
+  ├─> SpeechService.speak(highlights + "Full comparison opening.")
+  │
+  └─> FileSystem.open(document)
 ```
 
 ### Dynamic Tool Generation
@@ -306,40 +747,26 @@ User: "Parse this CSV file and summarize the sales data"
   │     └─> Execute in V8 isolate
   │     └─> Save tool for reuse
   │
-  └─> SpeechService.speak("Total sales: $1.2M, top product...")
+  ├─> ModalityEngine.decide() → Voice highlights + Document
+  │
+  └─> SpeechService.speak("Total sales $1.2M, top product...")
+      + Open sales-analysis.md
 ```
 
 ---
 
-## Message Protocol (MessagePack)
+## Long-Running Task Behavior
 
-All inter-component messages use MessagePack with JSON Schema validation:
+JACK handles long tasks silently:
 
-```typescript
-// Base message envelope
-interface Message {
-  id: string;           // UUID
-  type: MessageType;    // Enum
-  timestamp: number;    // Unix ms
-  payload: unknown;     // Type-specific
-}
+- **No unsolicited updates** - Works quietly in background
+- **Crucial updates only** - Speaks when something important happens (error, needs input)
+- **Available on request** - User can ask "How's that task going?" anytime
+- **Completion** - Brief announcement + open result if it's a document
 
-// Client → Server
-interface ClientMessage extends Message {
-  type: 'user_input' | 'context_update' | 'interrupt' | 'task_status';
-}
-
-// Server → Client
-interface ServerMessage extends Message {
-  type: 'response' | 'speech' | 'progress' | 'error' | 'acknowledgment';
-}
-
-// Inter-component (internal)
-interface InternalMessage extends Message {
-  source: string;       // Component ID
-  target: string;       // Component ID or 'broadcast'
-  correlationId: string; // For request/response matching
-}
+If something goes wrong:
+```
+JACK: "I hit a snag - the sales file from March is missing. Skip it or wait?"
 ```
 
 ---
@@ -349,63 +776,55 @@ interface InternalMessage extends Message {
 ```
 JACK/
 ├── src/
-│   ├── core/                 # Core orchestration
+│   ├── ui/                      # UI Layer
+│   │   ├── intentParser.ts      # Intent parsing
+│   │   ├── modalityEngine.ts    # Output modality decisions
+│   │   ├── orchestrator.ts      # Request orchestration
+│   │   └── documentGenerator.ts # Document creation
+│   ├── capabilities/            # Capability Layer
+│   │   ├── executor/
+│   │   │   ├── actionExecutor.ts
+│   │   │   └── types.ts
+│   │   ├── sandbox/
+│   │   │   ├── executor.ts
+│   │   │   ├── generator.ts
+│   │   │   ├── validator.ts
+│   │   │   └── toolStore.ts
+│   │   ├── plugins/
+│   │   │   ├── registry.ts
+│   │   │   ├── weather.ts
+│   │   │   ├── news.ts
+│   │   │   └── search.ts
+│   │   ├── context/
+│   │   │   ├── manager.ts
+│   │   │   └── providers/
+│   │   └── files/
+│   │       ├── finder.ts
+│   │       └── cache.ts
+│   ├── infrastructure/          # Infrastructure
 │   │   ├── eventBus.ts
-│   │   ├── orchestrator.ts
-│   │   └── config.ts
-│   ├── intent/               # Intent parsing
-│   │   ├── parser.ts
-│   │   ├── analyzer.ts
-│   │   └── types.ts
-│   ├── context/              # Context management
-│   │   ├── manager.ts
-│   │   └── providers/
-│   │       ├── time.ts
-│   │       ├── weather.ts
-│   │       └── location.ts
-│   ├── executor/             # Action execution
-│   │   ├── executor.ts
-│   │   ├── planner.ts
-│   │   └── types.ts
-│   ├── sandbox/              # Code generation & execution
-│   │   ├── executor.ts
-│   │   ├── generator.ts
-│   │   ├── validator.ts
-│   │   └── toolStore.ts
-│   ├── speech/               # Voice output
-│   │   ├── service.ts
-│   │   ├── worker.ts
-│   │   └── piper.ts
-│   ├── files/                # File finding
-│   │   ├── finder.ts
-│   │   └── cache.ts
-│   ├── plugins/              # Built-in plugins
-│   │   ├── weather.ts
-│   │   ├── news.ts
-│   │   ├── search.ts
-│   │   └── memory.ts
-│   ├── server/               # WebSocket server
-│   │   ├── index.ts
-│   │   └── handlers.ts
-│   ├── protocol/             # MessagePack + Schema
-│   │   ├── codec.ts
-│   │   ├── schemas/
-│   │   └── types.ts
-│   └── types/                # Shared types
+│   │   ├── speech/
+│   │   │   ├── service.ts
+│   │   │   ├── worker.ts
+│   │   │   └── piper.ts
+│   │   ├── server/
+│   │   │   ├── index.ts
+│   │   │   └── handlers.ts
+│   │   └── protocol/
+│   │       ├── codec.ts
+│   │       ├── schemas/
+│   │       └── types.ts
+│   └── types/
 │       └── index.ts
 ├── tests/
 │   ├── unit/
+│   │   ├── ui/
+│   │   ├── capabilities/
+│   │   └── infrastructure/
 │   └── integration/
-├── schemas/                  # JSON Schemas
-│   ├── message.json
-│   ├── intent.json
-│   └── context.json
+├── schemas/
 ├── docs/
-│   ├── JACK_V2_ARCHITECTURE.md
-│   └── TODO.md
-├── package.json              # Bun project
-├── bunfig.toml              # Bun config
-└── tsconfig.json
+└── package.json
 ```
 
 ---
@@ -413,30 +832,33 @@ JACK/
 ## Implementation Phases
 
 ### Phase 1: Foundation
-1. Set up Bun project with TypeScript
-2. Implement MessagePack codec with JSON Schema validation
-3. EventBus with priority lanes
+1. Bun project setup with TypeScript
+2. MessagePack codec with JSON Schema validation
+3. EventBus (simple pub/sub)
 4. Basic WebSocket server
 
-### Phase 2: Core Components
-5. Intent Parser (Claude Haiku for fast parsing)
-6. Context Manager with time/weather/location providers
-7. Action Executor with parallel/sequential support
+### Phase 2: UI Layer
+5. Intent Parser (Claude Haiku)
+6. Modality Engine (output decisions)
+7. Orchestrator (request routing)
 
-### Phase 3: Speech & Files
-8. Speech Service (separate process, Piper TTS)
-9. File Finder with smart search
+### Phase 3: Capability Layer
+8. Action Executor
+9. Context Manager with providers
+10. Plugin Registry + built-in plugins
+11. File Finder
 
-### Phase 4: Sandbox & Plugins
-10. Sandbox Executor (V8 isolates)
-11. Code generator (Claude for tool creation)
-12. Built-in plugins (weather, news, search, memory)
+### Phase 4: Speech & Sandbox
+12. Speech Service (separate process, Piper)
+13. Sandbox Executor (V8 isolates)
+14. Code generator (Claude)
+15. Document generator
 
 ### Phase 5: Integration
-13. Wire all components
-14. End-to-end testing
-15. CLI client
-16. Web client
+16. Wire all components
+17. End-to-end testing
+18. CLI client
+19. Web client
 
 ---
 
@@ -447,27 +869,24 @@ JACK/
 ```
 tests/
 ├── unit/
-│   ├── core/
-│   │   ├── eventBus.test.ts      # Lane isolation, parallel processing
+│   ├── ui/
+│   │   ├── intentParser.test.ts      # Compound detection, deps
+│   │   ├── modalityEngine.test.ts    # Output decisions
 │   │   └── orchestrator.test.ts
-│   ├── intent/
-│   │   ├── parser.test.ts        # Compound detection, deps
-│   │   └── analyzer.test.ts
-│   ├── context/
-│   │   └── manager.test.ts       # Provider management
-│   ├── executor/
-│   │   └── executor.test.ts      # Parallel/sequential execution
-│   ├── sandbox/
-│   │   ├── executor.test.ts      # Safe execution
-│   │   └── validator.test.ts     # Security checks
-│   ├── speech/
-│   │   └── service.test.ts       # Non-blocking, queue
-│   └── files/
-│       └── finder.test.ts        # Smart search
+│   ├── capabilities/
+│   │   ├── executor.test.ts          # Parallel/sequential
+│   │   ├── sandbox.test.ts           # Safe execution
+│   │   ├── plugins.test.ts
+│   │   └── fileFinder.test.ts
+│   └── infrastructure/
+│       ├── eventBus.test.ts          # Pub/sub behavior
+│       ├── speech.test.ts            # Non-blocking
+│       └── codec.test.ts             # MessagePack
 └── integration/
-    ├── compound-query.test.ts    # Multi-intent flows
-    ├── sandbox-tool.test.ts      # Dynamic tool generation
-    └── full-flow.test.ts         # End-to-end
+    ├── simple-query.test.ts
+    ├── compound-query.test.ts
+    ├── research-with-doc.test.ts
+    └── sandbox-tool.test.ts
 ```
 
 ---
@@ -488,33 +907,10 @@ tests/
 
 ## Security Considerations
 
-1. **Sandbox isolation** - V8 isolates, no access to Node/Bun APIs
-2. **Network whitelist** - Generated code can only call approved domains
-3. **File path restrictions** - Sandbox can only access designated directories
-4. **Rate limiting** - Prevent abuse of AI APIs
-5. **Input validation** - JSON Schema at all boundaries
-6. **No eval/Function** - Static analysis blocks dangerous patterns
-
----
-
-## Long-Running Task Behavior
-
-JACK handles long tasks like a partner you've delegated work to:
-
-- **No unsolicited updates** - Works quietly in background
-- **Crucial updates only** - Speaks when something important happens (error, needs input, major milestone)
-- **Available on request** - User can ask "How's that task going?" anytime
-- **Completion notification** - Speaks final result when done
-
-Example:
-```
-User: "Analyze all the sales data from last quarter"
-JACK: "On it." (brief acknowledgment)
-      ... works silently for 45 seconds ...
-JACK: "Done. Revenue was up 12%, top product was..."
-```
-
-If something goes wrong:
-```
-JACK: "I hit a snag - the sales file from March is missing. Want me to skip it or wait?"
-```
+1. **Sandbox isolation** - V8 isolates via `isolated-vm`, no access to Node/Bun APIs
+2. **Instant termination** - Kill switch for runaway or suspicious code
+3. **Resource limits** - 30s timeout, 128MB memory per execution
+4. **File path restrictions** - Sandbox can only access designated directories
+5. **Network logging** - All sandbox HTTP requests logged for review
+6. **Rate limiting** - Prevent abuse of AI APIs
+7. **Input validation** - JSON Schema at all boundaries
