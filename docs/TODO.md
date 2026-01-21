@@ -4,85 +4,76 @@
 
 **Priority:** Critical
 **Status:** 🚧 IN PROGRESS
-**Architecture Doc:** [docs/JACK_V2_ARCHITECTURE.md](JACK_V2_ARCHITECTURE.md)
+**Architecture Doc:** [JACK_V2_ARCHITECTURE.md](JACK_V2_ARCHITECTURE.md)
 
-Complete redesign of JACK from response-oriented assistant to real-time voice-first conversational kernel.
+Complete redesign of JACK as a real-time voice-first conversational kernel.
+
+---
 
 ### Next Session: Phase 1 - Foundation
 
+**Stack:** Bun + TypeScript | MessagePack + JSON Schema
 **Approach:** Test-Driven Development - Write tests BEFORE implementation
 
-#### 1. EventBus V2 (Priority Lanes)
-- [ ] Write tests for `src/events/eventBusV2.ts`
+#### 1. Project Setup
+- [ ] Initialize Bun project
+- [ ] Configure TypeScript
+- [ ] Set up test framework (bun:test)
+- [ ] Install dependencies: msgpack, json-schema validator
+
+#### 2. MessagePack Codec
+- [ ] Write tests for `src/protocol/codec.ts`
+  - [ ] Test encode/decode roundtrip
+  - [ ] Test JSON Schema validation
+  - [ ] Test error handling for invalid messages
+- [ ] Implement codec to pass tests
+
+#### 3. EventBus (Priority Lanes)
+- [ ] Write tests for `src/core/eventBus.ts`
   - [ ] Test priority lane isolation (URGENT, HIGH, NORMAL, LOW)
   - [ ] Test parallel event processing within lanes
   - [ ] Test fire-and-forget publishing
   - [ ] Test lane doesn't block other lanes
-- [ ] Implement EventBus V2 to pass tests
+- [ ] Implement EventBus to pass tests
 
-#### 2. Speech Service (Independent Worker Thread)
-- [ ] Write tests for `src/speech/speechService.ts`
-  - [ ] Test fire-and-forget speak() returns immediately
-  - [ ] Test smart acknowledgments (only for complex queries)
-  - [ ] Test priority queue (immediate interrupts current)
-  - [ ] Test per-client isolation
-  - [ ] Test interruption support
-- [ ] Write tests for `src/speech/speechWorker.ts`
-  - [ ] Test TTS generation in worker
-  - [ ] Test abort handling
-- [ ] Implement Speech Service to pass tests
-
-### Future Phases
-
-#### Phase 2: Intent System
-- [ ] Intent Parser - compound detection, dependencies, follow-ups
-- [ ] Context Manager - providers for time, weather, location, preferences
-
-#### Phase 3: Execution
-- [ ] Action Executor - parallel/sequential intent execution
-- [ ] Sandbox Executor - VM2 isolation, code generation, tool persistence
-
-#### Phase 4: Integration
-- [ ] File Finder Service - smart file location
-- [ ] New Orchestrator - wire all components
-- [ ] Migration - move plugins, remove deprecated code
+#### 4. Basic WebSocket Server
+- [ ] Write tests for `src/server/index.ts`
+  - [ ] Test connection handling
+  - [ ] Test MessagePack message parsing
+  - [ ] Test client session management
+- [ ] Implement server to pass tests
 
 ---
 
-## Archived: proPACE v2 Items
+### Future Phases
 
-The following items are from proPACE v2 and are now superseded by the JACK v2 redesign.
-Old implementation archived at `archive/propace-v2/`.
+#### Phase 2: Core Components
+- [ ] Intent Parser - compound detection, dependencies, follow-ups (Claude Haiku)
+- [ ] Context Manager - providers for time, weather, location, preferences
+- [ ] Action Executor - parallel/sequential intent execution
 
-<details>
-<summary>Click to expand archived items</summary>
+#### Phase 3: Speech & Files
+- [ ] Speech Service - separate process, Piper TTS, non-blocking
+- [ ] File Finder - smart search across common locations
 
-### Browser Voice Interface (Superseded)
-Was planned for proPACE but will be reimplemented with new architecture.
+#### Phase 4: Sandbox & Plugins
+- [ ] Sandbox Executor - V8 isolates, code generation, tool persistence
+- [ ] Built-in plugins - weather, news, search, memory
 
-### API Endpoints (May be reused)
-REST endpoints for server info - may be incorporated into JACK v2.
-
-### CLI/Dashboard Improvements (Deferred)
-Will revisit after JACK v2 core is complete.
-
-</details>
+#### Phase 5: Integration
+- [ ] Wire all components
+- [ ] CLI client
+- [ ] Web client
+- [ ] End-to-end testing
 
 ---
 
 ## Completed
 
-- [x] JACK v2 architecture design and planning
-- [x] Archive proPACE v2 implementation
-- [x] Document new architecture in docs/JACK_V2_ARCHITECTURE.md
-- [x] Windows compatibility fix for server startup
-- [x] NSSM deployment script fixes
-- [x] SSH setup documentation
-- [x] Status dashboard with blessed
-- [x] New CLI with blessed framework
-- [x] Fast-path routing in agent mode
-- [x] Google Search integration
-- [x] Butler personality mode
+- [x] JACK v2 architecture design
+- [x] Technology decisions (Bun, MessagePack, hybrid architecture)
+- [x] Archive proPACE v2 implementation (local only)
+- [x] Clean project structure
 
 ---
 
@@ -92,12 +83,12 @@ Will revisit after JACK v2 core is complete.
 2. **Smart Acknowledgments** - Only acknowledge complex queries, not simple ones
 3. **File Finding** - If file not found, search common locations before failing
 4. **Long Tasks** - Work silently, only speak on crucial updates or completion
+5. **MessagePack** - All inter-component communication uses MessagePack
 
 ---
 
 ## Notes
 
-- Old proPACE code archived at `archive/propace-v2/`
+- Old proPACE code archived locally at `archive/` (not in git)
 - Architecture doc at `docs/JACK_V2_ARCHITECTURE.md`
-- Keep backwards compatibility during migration
-- Test on all platforms before release
+- Using Bun for 3-4x speed improvement over Node.js

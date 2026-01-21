@@ -14,76 +14,68 @@ JACK is designed to feel like talking to a capable assistant - not waiting for o
 
 ## Status
 
-JACK v2 is currently being redesigned. See [docs/JACK_V2_ARCHITECTURE.md](docs/JACK_V2_ARCHITECTURE.md) for the full architecture plan.
+JACK v2 is currently being built. See [docs/JACK_V2_ARCHITECTURE.md](docs/JACK_V2_ARCHITECTURE.md) for the full architecture plan.
 
-### Architecture Overview
+## Tech Stack
+
+| Layer | Technology | Why |
+|-------|------------|-----|
+| **Runtime** | Bun | 3-4x faster than Node.js, native TS, built-in SQLite |
+| **Language** | TypeScript | Type safety, maintainability |
+| **Serialization** | MessagePack + JSON Schema | Fast binary format with contract validation |
+| **AI** | Claude (Haiku + Sonnet) | Fast routing + intelligent responses |
+| **TTS** | Piper | Local neural TTS, ~200-500ms latency |
+| **Database** | SQLite | Embedded, zero-config |
+| **Communication** | WebSocket | Real-time bidirectional |
+
+## Architecture
 
 ```
-                    User Voice/Text Input
-                             |
-                             v
-              +-----------------------------+
-              |   EVENT BUS (Priority Lanes) |
-              +-----------------------------+
-                    |       |       |
-          +---------+       |       +---------+
-          v                 v                 v
-    +-----------+    +-------------+    +-----------+
-    |  SPEECH   |    |   INTENT    |    |  CONTEXT  |
-    |  SERVICE  |    |   PARSER    |    |  MANAGER  |
-    +-----------+    +-------------+    +-----------+
-    | Worker    |    | Compound    |    | Time      |
-    | Thread    |    | Detection   |    | Weather   |
-    | Non-block |    | Follow-ups  |    | Location  |
-    +-----------+    +------+------+    +-----+-----+
-                            |                 |
-                            v                 |
-                    +-------+-------+         |
-                    | ACTION EXEC   |<--------+
-                    +---------------+
-                    | Plugin Router |
-                    | Sandbox Exec  |
-                    +-------+-------+
-                            |
-                            v
-                    +---------------+
-                    |   SANDBOX     |
-                    +---------------+
-                    | VM2 Isolation |
-                    | Code Gen      |
-                    | Tool Persist  |
-                    +---------------+
+┌─────────────────────────────────────────────────────────────────────┐
+│                        JACK CORE (Bun/TypeScript)                    │
+│  ┌─────────────────────────────────────────────────────────────────┐│
+│  │                    EVENT BUS (Priority Lanes)                    ││
+│  │   URGENT (Speech)  │  HIGH (Input)  │  NORMAL  │  LOW (Cleanup) ││
+│  └─────────────────────────────────────────────────────────────────┘│
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────────────────┐│
+│  │ INTENT PARSER │  │    CONTEXT    │  │      ORCHESTRATOR         ││
+│  │ • Compound    │  │    MANAGER    │  │ • Route to components     ││
+│  │ • Follow-ups  │  │ • Time/Weather│  │ • Manage execution        ││
+│  │ • Deps graph  │  │ • Location    │  │ • Background tasks        ││
+│  └───────────────┘  └───────────────┘  └───────────────────────────┘│
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────────────────┐│
+│  │    ACTION     │  │    PLUGIN     │  │       FILE FINDER         ││
+│  │   EXECUTOR    │  │   REGISTRY    │  │ • Smart search            ││
+│  │ • Parallel    │  │ • Weather     │  │ • Common locations        ││
+│  │ • Sequential  │  │ • News/Search │  │ • Fuzzy match             ││
+│  └───────────────┘  └───────────────┘  └───────────────────────────┘│
+└─────────────────────────────────────────────────────────────────────┘
+          │                    │                    │
+          ▼                    ▼                    ▼
+   ┌─────────────┐    ┌─────────────┐    ┌─────────────────────────┐
+   │   SPEECH    │    │   SANDBOX   │    │     EXTERNAL APIS       │
+   │  (Separate) │    │ (V8 Isolate)│    │ Claude, Weather, Search │
+   └─────────────┘    └─────────────┘    └─────────────────────────┘
 ```
-
-### Core Components (In Development)
-
-| Component | Purpose | Status |
-|-----------|---------|--------|
-| **Speech Service** | Non-blocking voice in worker thread | Planned |
-| **Intent Parser** | Compound commands, follow-ups, clarification | Planned |
-| **Context Manager** | Time, weather, location, preferences | Planned |
-| **Action Executor** | Parallel/sequential intent execution | Planned |
-| **Sandbox Executor** | Safe code generation and execution | Planned |
-| **File Finder** | Smart file location across common paths | Planned |
-| **EventBus V2** | Priority lanes, parallel processing | Planned |
 
 ## Quick Start
 
 ```bash
+# Install Bun (if not installed)
+curl -fsSL https://bun.sh/install | bash
+
 # Install dependencies
-npm install
+bun install
 
 # Set up environment
 cp .env.example .env
 # Edit .env and add your ANTHROPIC_API_KEY
 
-# Development
-npm run dev        # Start server
-npm run dev:cli    # Start CLI client
+# Run tests
+bun test
 
-# Production
-npm run build
-npm start
+# Start server (coming soon)
+bun run start
 ```
 
 ## Project Structure
@@ -91,24 +83,25 @@ npm start
 ```
 JACK/
 ├── src/
-│   ├── server/          # WebSocket server
-│   ├── speech/          # Independent speech service (planned)
-│   ├── intent/          # Intent parsing (planned)
-│   ├── context/         # Context providers (planned)
-│   ├── executor/        # Action execution (planned)
-│   ├── sandbox/         # Safe code execution (planned)
-│   ├── files/           # Smart file finding (planned)
-│   ├── events/          # Event bus
-│   ├── plugins/         # Plugin system
-│   ├── services/        # Core services
-│   └── types/           # TypeScript types
-├── tests/               # Test suites
+│   ├── core/           # EventBus, Orchestrator, Config
+│   ├── intent/         # Intent parsing
+│   ├── context/        # Context providers
+│   ├── executor/       # Action execution
+│   ├── sandbox/        # Code generation & safe execution
+│   ├── speech/         # Voice output (separate process)
+│   ├── files/          # Smart file finding
+│   ├── plugins/        # Built-in plugins
+│   ├── server/         # WebSocket server
+│   ├── protocol/       # MessagePack codec + schemas
+│   └── types/          # Shared types
+├── tests/
+│   ├── unit/
+│   └── integration/
+├── schemas/            # JSON Schemas
 ├── docs/
-│   ├── JACK_V2_ARCHITECTURE.md  # Full architecture
-│   ├── TODO.md                   # Development roadmap
-│   └── PIPER_INSTALLATION.md    # TTS setup
-├── archive/             # Old proPACE implementation
-└── public/              # Web interface
+│   ├── JACK_V2_ARCHITECTURE.md
+│   └── TODO.md
+└── package.json
 ```
 
 ## API Keys
@@ -117,32 +110,21 @@ JACK/
 |-----|----------|---------|
 | `ANTHROPIC_API_KEY` | Yes | Claude AI (Sonnet + Haiku) |
 | `OPENWEATHERMAP_API_KEY` | No | Weather data |
-| `WOLFRAM_ALPHA_APP_ID` | No | Computational queries |
+| `GOOGLE_API_KEY` | No | Search |
 
-## Development Approach
+## Development
 
 **Test-Driven Development** - Tests are written BEFORE implementation.
 
 ```bash
-npm test              # Run all tests
-npm run test:watch    # Watch mode
-npm run test:coverage # Coverage report
+bun test              # Run all tests
+bun test --watch      # Watch mode
 ```
 
 ## Documentation
 
 - [Architecture](docs/JACK_V2_ARCHITECTURE.md) - Full system design
 - [TODO](docs/TODO.md) - Development roadmap
-- [Piper TTS](docs/PIPER_INSTALLATION.md) - Local TTS setup
-
-## Tech Stack
-
-- **Runtime**: Node.js 20+ / TypeScript
-- **AI**: Anthropic Claude (Sonnet + Haiku)
-- **TTS**: Piper (local, fast)
-- **Database**: SQLite
-- **Communication**: WebSocket
-- **Testing**: Vitest
 
 ## License
 
