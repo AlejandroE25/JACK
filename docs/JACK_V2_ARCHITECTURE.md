@@ -123,6 +123,23 @@ When JACK creates a document:
 1. **Speak briefly**: "Research done" / "Report ready"
 2. **Open the file automatically** so you can read immediately
 
+### Future Output Modalities
+
+Voice and documents are the current outputs, but JACK's Modality Engine is designed to extend to:
+
+| Modality | Use Cases |
+|----------|-----------|
+| **AR Glasses** | Visual overlays, spatial UI, contextual info in field of view |
+| **Navigation** | Turn-by-turn directions, map markers, ETA updates |
+| **Smart Home** | Device control, status displays, ambient notifications |
+| **Wearables** | Haptic feedback, minimal displays, health alerts |
+| **Automotive** | Dashboard integration, HUD, parking assistance |
+
+The architecture separates *what* to communicate from *how* to present it. Adding a new output modality means:
+1. Adding a new output type to `ModalityDecision`
+2. Extending `ModalityEngine.decide()` with rules for when to use it
+3. Implementing the output handler (AR renderer, nav system, etc.)
+
 ---
 
 ## Technology Stack

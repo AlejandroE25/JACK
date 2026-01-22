@@ -1,94 +1,40 @@
 {
-  "name": "propace",
+  "name": "jack",
   "version": "2.0.0",
-  "description": "Personal AI Assistant with persistent memory - TypeScript rewrite",
+  "description": "Just Another Conversational Kernel - Real-time voice-first AI assistant",
   "type": "module",
-  "main": "dist/src/server/index.js",
+  "main": "src/server/index.ts",
   "scripts": {
-    "dev": "tsx watch src/server/index.ts",
-    "dev:cli": "tsx src/cli/index-blessed.ts",
-    "cli": "node dist/src/cli/index-blessed.js",
-    "cli:legacy": "node dist/src/cli/index.js",
-    "dashboard": "tsx src/cli/status-dashboard.ts",
-    "status": "node dist/src/cli/status-dashboard.js",
-    "build": "tsc",
-    "build:cli": "tsc && chmod +x dist/src/cli/index.js",
-    "bundle:cli": "esbuild src/cli/index.ts --bundle --platform=node --target=node18 --format=cjs --outfile=build/bundle.cjs --external:ws --external:better-sqlite3",
-    "build:standalone": "npm run bundle:cli && npm run pkg:all",
-    "pkg:all": "npm run pkg:mac && npm run pkg:linux && npm run pkg:win",
-    "pkg:mac": "pkg build/bundle.cjs --targets node18-macos-x64 --output build/pace-macos",
-    "pkg:linux": "pkg build/bundle.cjs --targets node18-linux-x64 --output build/pace-linux",
-    "pkg:win": "pkg build/bundle.cjs --targets node18-win-x64 --output build/pace-windows.exe",
-    "start": "node dist/src/server/index.js",
-    "start:production": "node dist/src/main.js",
-    "dev:production": "tsx src/main.ts",
-    "start:cli": "node dist/src/cli/index.js",
-    "test": "vitest",
-    "test:unit": "vitest run tests/unit",
-    "test:integration": "vitest run tests/integration",
-    "test:watch": "vitest --watch",
-    "test:coverage": "vitest --coverage",
+    "start": "bun run src/server/index.ts",
+    "dev": "bun --watch run src/server/index.ts",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "test:coverage": "bun test --coverage",
+    "typecheck": "bun run tsc --noEmit",
     "lint": "eslint src tests --ext .ts",
-    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
-    "typecheck": "tsc --noEmit"
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\""
   },
   "keywords": [
     "ai",
     "assistant",
+    "voice",
     "websocket",
     "claude",
-    "jarvis"
+    "real-time"
   ],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",
-    "@wolfram-alpha/wolfram-alpha-api": "^23.1004.144821-RELEASE",
-    "better-sqlite3": "^11.5.0",
-    "body-parser": "^2.2.1",
-    "boxen": "^8.0.1",
-    "chalk": "^5.6.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^5.2.1",
-    "feedparser": "^2.2.10",
-    "node-fetch": "^3.3.2",
-    "openai": "^4.72.0",
-    "rss-parser": "^3.13.0",
-    "sax": "^1.4.1",
-    "werift": "^0.22.2",
-    "winston": "^3.19.0",
-    "winston-daily-rotate-file": "^5.0.0",
-    "ws": "^8.18.3"
+    "@msgpack/msgpack": "^3.0.0-beta2",
+    "ajv": "^8.17.1"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.12",
-    "@types/blessed": "^0.1.27",
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.6",
-    "@types/node": "^22.19.2",
-    "@types/ws": "^8.18.1",
+    "@types/bun": "latest",
+    "typescript": "^5.7.2",
+    "eslint": "^9.15.0",
     "@typescript-eslint/eslint-plugin": "^8.15.0",
     "@typescript-eslint/parser": "^8.15.0",
-    "@vitest/coverage-v8": "^2.1.6",
-    "blessed": "^0.1.81",
-    "blessed-contrib": "^4.11.0",
-    "esbuild": "^0.27.1",
-    "eslint": "^9.15.0",
-    "pkg": "^5.8.1",
-    "prettier": "^3.3.3",
-    "sinon": "^19.0.2",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.2",
-    "vitest": "^2.1.6"
-  },
-  "engines": {
-    "node": ">=20.0.0"
-  },
-  "pkg": {
-    "assets": [
-      "node_modules/**/*"
-    ],
-    "outputPath": "build"
+    "prettier": "^3.3.3"
   }
 }

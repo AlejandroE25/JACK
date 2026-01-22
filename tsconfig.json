@@ -2,10 +2,11 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
-    "lib": ["ES2022"],
     "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "types": ["bun-types"],
     "resolveJsonModule": true,
-    "allowJs": true,
+    "allowJs": false,
     "outDir": "./dist",
     "rootDir": "./",
     "strict": true,
@@ -20,8 +21,8 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "allowSyntheticDefaultImports": true,
-    "types": ["node", "vitest/globals"]
+    "noEmit": true
   },
-  "include": ["src/**/*", "cli/**/*", "tests/**/*"],
-  "exclude": ["node_modules", "dist", "build", "**/*.test.ts"]
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": ["node_modules", "dist", "archive"]
 }
