@@ -198,3 +198,30 @@ export interface ContextSnapshot {
   activeResource: ActiveResource | null;
   relevantMemory: Record<string, MemoryValue>;
 }
+
+// Action Executor types
+
+export type ProgressStatus =
+  | { type: 'started' }
+  | { type: 'progress'; message: string }
+  | { type: 'completed'; result: unknown }
+  | { type: 'failed'; error: string }
+  | { type: 'skipped'; reason: string };
+
+export interface ProgressCallback {
+  (intentId: string, status: ProgressStatus): void;
+}
+
+// Plugin types
+
+export interface PluginResult {
+  success: boolean;
+  data?: unknown;
+  error?: string;
+}
+
+export interface Plugin {
+  name: string;
+  actions: string[];
+  execute(action: string, params: Record<string, unknown>): Promise<PluginResult>;
+}
