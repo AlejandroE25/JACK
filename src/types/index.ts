@@ -225,3 +225,43 @@ export interface Plugin {
   actions: string[];
   execute(action: string, params: Record<string, unknown>): Promise<PluginResult>;
 }
+
+// Speech Service types
+
+/** Message containing text and synthesized audio */
+export interface SpeechMessage {
+  text: string;
+  audio: Uint8Array;
+}
+
+/** TTS engine interface - abstraction over Piper or other TTS backends */
+export interface TTSEngine {
+  /** Synthesize text to audio */
+  synthesize(text: string): Promise<Uint8Array>;
+  /** Check if the TTS engine is available and working */
+  isAvailable(): Promise<boolean>;
+}
+
+/** Speech Service configuration options */
+export interface SpeechServiceOptions {
+  /** TTS engine to use for speech synthesis */
+  ttsEngine: TTSEngine;
+  /** Callback when speech audio is ready to send to client */
+  onSpeechReady: (clientId: string, message: SpeechMessage) => void;
+  /** Callback when TTS fails */
+  onError?: (clientId: string, text: string, error: string) => void;
+  /** Maximum number of pending speech requests per client (default: 10) */
+  maxQueueSize?: number;
+  /** Callback when queue is full and request is dropped */
+  onQueueFull?: (clientId: string, text: string) => void;
+}
+
+/** Piper TTS Engine configuration options */
+export interface PiperEngineOptions {
+  /** Path to piper executable (auto-detected if not specified) */
+  piperPath?: string;
+  /** Path to voice model .onnx file (auto-detected if not specified) */
+  modelPath?: string;
+  /** Timeout in milliseconds for synthesis (default: 30000) */
+  timeout?: number;
+}

@@ -5,75 +5,58 @@
 **Priority:** Critical
 **Status:** 🚧 IN PROGRESS
 **Architecture Doc:** [JACK_V2_ARCHITECTURE.md](JACK_V2_ARCHITECTURE.md)
+**Implementation Guide:** [IMPLEMENTATION.md](IMPLEMENTATION.md)
 
 Complete redesign of JACK as a real-time voice-first conversational kernel.
 
----
-
-### Next Session: Phase 1 - Foundation
-
-**Stack:** Bun + TypeScript | MessagePack + JSON Schema
-**Approach:** Test-Driven Development - Write tests BEFORE implementation
-
-#### 1. Project Setup
-- [ ] Initialize Bun project
-- [ ] Configure TypeScript
-- [ ] Set up test framework (bun:test)
-- [ ] Install dependencies: msgpack, json-schema validator
-
-#### 2. MessagePack Codec
-- [ ] Write tests for `src/protocol/codec.ts`
-  - [ ] Test encode/decode roundtrip
-  - [ ] Test JSON Schema validation
-  - [ ] Test error handling for invalid messages
-- [ ] Implement codec to pass tests
-
-#### 3. EventBus (Priority Lanes)
-- [ ] Write tests for `src/core/eventBus.ts`
-  - [ ] Test priority lane isolation (URGENT, HIGH, NORMAL, LOW)
-  - [ ] Test parallel event processing within lanes
-  - [ ] Test fire-and-forget publishing
-  - [ ] Test lane doesn't block other lanes
-- [ ] Implement EventBus to pass tests
-
-#### 4. Basic WebSocket Server
-- [ ] Write tests for `src/server/index.ts`
-  - [ ] Test connection handling
-  - [ ] Test MessagePack message parsing
-  - [ ] Test client session management
-- [ ] Implement server to pass tests
+**Test Coverage:** 241 tests passing
 
 ---
 
-### Future Phases
+## Current Session: Phase 5 - Integration
 
-#### Phase 2: Core Components
-- [ ] Intent Parser - compound detection, dependencies, follow-ups (Claude Haiku)
-- [ ] Context Manager - providers for time, weather, location, preferences
-- [ ] Action Executor - parallel/sequential intent execution
-
-#### Phase 3: Speech & Files
-- [ ] Speech Service - separate process, Piper TTS, non-blocking
-- [ ] File Finder - smart search across common locations
-
-#### Phase 4: Sandbox & Plugins
-- [ ] Sandbox Executor - V8 isolates, code generation, tool persistence
-- [ ] Built-in plugins - weather, news, search, memory
-
-#### Phase 5: Integration
-- [ ] Wire all components
+Next steps:
+- [ ] Wire all components together
+- [ ] Create main entry point
 - [ ] CLI client
 - [ ] Web client
 - [ ] End-to-end testing
 
 ---
 
-## Completed
+## Completed Phases
 
-- [x] JACK v2 architecture design
-- [x] Technology decisions (Bun, MessagePack, hybrid architecture)
-- [x] Archive proPACE v2 implementation (local only)
-- [x] Clean project structure
+### Phase 1: Foundation ✓
+- [x] Project Setup (Bun, TypeScript, bun:test)
+- [x] MessagePack Codec (`src/protocol/codec.ts`) - 13 tests
+- [x] EventBus (`src/core/eventBus.ts`) - 25 tests
+- [x] WebSocket Server (`src/server/websocket.ts`) - 13 tests
+
+### Phase 2: UI Layer ✓
+- [x] Intent Parser (`src/ui/intentParser.ts`) - 15 tests
+- [x] Modality Engine (`src/ui/modalityEngine.ts`) - 10 tests
+- [x] Orchestrator (`src/ui/orchestrator.ts`) - 10 tests
+
+### Phase 3: Capability Layer ✓
+- [x] Context Manager (`src/capabilities/contextManager.ts`) - 25 tests
+- [x] Action Executor (`src/capabilities/actionExecutor.ts`) - 15 tests
+- [x] Plugin Registry (`src/capabilities/pluginRegistry.ts`) - 25 tests
+- [x] File Finder (`src/capabilities/fileFinder.ts`) - 26 tests
+
+### Phase 4: Sandbox & Speech ✓
+- [x] Sandbox Executor (`src/capabilities/sandboxExecutor.ts`) - 24 tests
+- [x] Speech Service (`src/capabilities/speechService.ts`) - 26 tests
+- [x] Piper TTS Engine (`src/capabilities/piperEngine.ts`) - 24 tests
+
+---
+
+## Future Phases
+
+### Phase 5: Integration
+- [ ] Wire all components together
+- [ ] CLI client
+- [ ] Web client
+- [ ] End-to-end testing
 
 ---
 

@@ -1315,10 +1315,200 @@ module.exports = async (params, context) => {
 
 ---
 
+### Component 13: Speech Service (`src/capabilities/speechService.ts`)
+
+Non-blocking TTS synthesis with per-client queuing and interrupt support.
+
+#### Design Decisions
+
+- **Fire-and-forget**: `speak()` returns immediately, callback when ready
+- **Per-client queuing**: Requests processed in order per client
+- **Interruptible**: Can cancel pending/active speech instantly
+- **Engine abstraction**: TTSEngine interface allows swapping backends (Piper, etc.)
+- **Queue limits**: Prevents memory issues from too many pending requests
+
+#### Types
+
+```typescript
+interface SpeechMessage {
+  text: string;
+  audio: Uint8Array;
+}
+
+interface TTSEngine {
+  synthesize(text: string): Promise<Uint8Array>;
+  isAvailable(): Promise<boolean>;
+}
+
+interface SpeechServiceOptions {
+  ttsEngine: TTSEngine;
+  onSpeechReady: (clientId: string, message: SpeechMessage) => void;
+  onError?: (clientId: string, text: string, error: string) => void;
+  maxQueueSize?: number;
+  onQueueFull?: (clientId: string, text: string) => void;
+}
+```
+
+#### Interface
+
+```typescript
+class SpeechService {
+  constructor(options: SpeechServiceOptions);
+
+  // Core operations
+  speak(clientId: string, text: string): void;  // Fire-and-forget
+  interrupt(clientId: string): void;            // Stop all pending speech
+  isSpeaking(clientId: string): boolean;        // Check if active/pending
+
+  // Queue management
+  getQueueSize(clientId: string): number;
+
+  // Engine status
+  isEngineAvailable(): Promise<boolean>;
+
+  // Lifecycle
+  shutdown(): Promise<void>;
+}
+```
+
+#### Test Cases
+
+**speak():**
+1. Returns immediately (fire-and-forget)
+2. Calls onSpeechReady when TTS completes
+3. Handles multiple requests for same client
+4. Handles requests for different clients
+5. Includes audio data in speech message
+
+**isSpeaking():**
+6. Returns false for client with no active speech
+7. Returns true while speech is being generated
+8. Returns false for unknown client
+9. Tracks state per client independently
+
+**interrupt():**
+10. Stops pending speech for client
+11. Does nothing for client with no active speech
+12. Only interrupts specified client
+13. Interrupts all pending speech for client
+
+**Error handling:**
+14. Calls onError callback when TTS fails
+15. Continues processing after error
+16. Marks speaking as false after error
+
+**Queue management:**
+17. Processes requests in order
+18. Returns queue size for client
+19. Clears queue on interrupt
+
+**shutdown():**
+20. Stops all active speech generation
+21. Prevents new speak requests after shutdown
+22. Can be called multiple times safely
+
+**Configuration:**
+23. Uses default options when not provided
+24. Respects max queue size limit
+
+---
+
+### Component 14: Piper TTS Engine (`src/capabilities/piperEngine.ts`)
+
+TTSEngine implementation that runs Piper as a subprocess.
+
+#### Design Decisions
+
+- **Subprocess execution**: Each synthesis runs Piper in a separate process
+- **Platform-aware defaults**: Auto-detects paths for macOS, Linux, Windows
+- **WAV output**: Wraps raw PCM from Piper with WAV headers
+- **Text sanitization**: Removes control characters, normalizes whitespace
+- **Timeout enforcement**: Kills subprocess if it takes too long
+
+#### Types
+
+```typescript
+interface PiperEngineOptions {
+  piperPath?: string;   // Path to piper executable (auto-detected)
+  modelPath?: string;   // Path to .onnx model file (auto-detected)
+  timeout?: number;     // Synthesis timeout in ms (default: 30000)
+}
+```
+
+#### Interface
+
+```typescript
+class PiperTTSEngine implements TTSEngine {
+  constructor(options?: PiperEngineOptions);
+
+  // TTSEngine interface
+  synthesize(text: string): Promise<Uint8Array>;
+  isAvailable(): Promise<boolean>;
+
+  // Utilities
+  sanitizeText(text: string): string;
+  getPiperPath(): string;
+  getModelPath(): string;
+  getTimeout(): number;
+}
+```
+
+#### Default Paths by Platform
+
+| Platform | Piper Executable | Model Path |
+|----------|------------------|------------|
+| macOS | `piper` (PATH) | `/usr/local/share/piper/voices/en_US-lessac-medium.onnx` |
+| Linux | `/usr/local/bin/piper` | `/usr/local/share/piper/voices/en_US-lessac-medium.onnx` |
+| Windows | `C:\Program Files\Piper\piper\piper.exe` | `C:\Program Files\Piper\voices\en_US-lessac-medium.onnx` |
+
+#### Test Cases
+
+**Constructor:**
+1. Creates engine with default options
+2. Creates engine with custom piper path
+3. Creates engine with custom model path
+4. Creates engine with custom timeout
+
+**isAvailable():**
+5. Returns false when piper executable not found
+6. Returns false when model file not found
+7. Returns true when piper and model available (integration)
+
+**synthesize():**
+8. Throws error when piper not available
+9. Throws error on empty text
+10. Throws error on whitespace-only text
+11. Synthesizes text to WAV audio (integration)
+12. Handles multi-line text (integration)
+13. Handles special characters (integration)
+
+**Timeout:**
+14. Uses default timeout of 30 seconds
+15. Uses custom timeout when specified
+
+**Concurrent:**
+16. Handles multiple concurrent requests (integration)
+
+**Text sanitization:**
+17. Sanitizes control characters
+18. Preserves normal punctuation
+19. Trims whitespace
+20. Normalizes multiple spaces
+
+**Error messages:**
+21. Provides helpful error when piper not found
+22. Provides helpful error when model not found
+
+**Path detection:**
+23. Detects default piper path
+24. Detects default model path
+
+---
+
 ## Running Tests
 
 ```bash
-# Run all tests (191 tests)
+# Run all tests (241 tests)
 bun test
 
 # Run specific phase
@@ -1333,7 +1523,10 @@ bun test --watch
 
 ## Next Components to Implement
 
-### Phase 4 (continued): Speech Service
-- Speech Service (Piper TTS, separate process)
+### Phase 5: Integration
+- Wire all components together
+- CLI client
+- Web client
+- End-to-end testing
 
 See `JACK_V2_ARCHITECTURE.md` for full design details.
